@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>黄金量化决策引擎 v2.0.7</title>
+  <title>黄金量化决策引擎 v2.0.8</title>
   <style>
     :root {
       --bg: #f5f6f8; --card: #fff; --input-bg: #f3f4f6; --text: #1d1d1f;
@@ -146,20 +146,18 @@
   <div class="app">
     <div class="toast toast-err" id="toastErr"></div>
     <div class="toast toast-ok" id="toastOk"></div>
-    <div class="header"><h1>📊 黄金量化决策引擎<span class="ver-badge">v2.0.7</span></h1></div>
+    <div class="header"><h1>📊 黄金量化决策引擎<span class="ver-badge">v2.0.8</span></h1></div>
     <div class="layout">
       <!-- ========== 左栏 ========== -->
       <div class="panel-left">
         <!-- 品种数据 -->
         <div class="card">
           <div class="card-title"><span class="dot"></span>品种数据</div>
-          <!-- 宏观总览行 -->
           <div class="macro-row">
             <div class="field"><label>美债10Y (%)</label><input type="number" id="us10y" step="0.01"></div>
             <div class="field"><label>VIX</label><input type="number" id="vix" step="0.01"></div>
             <div class="field opt"><label>资金流(亿·可选)</label><input type="number" id="fundFlow" step="0.01"></div>
           </div>
-          <!-- DXY -->
           <div class="species-card fx">
             <div class="species-name">💵 美元指数 (DXY)</div>
             <div class="species-row">
@@ -169,20 +167,8 @@
               <div class="field"><label>最高</label><input type="number" id="dxyHigh" step="0.01"></div>
               <div class="field"><label>最低</label><input type="number" id="dxyLow" step="0.01"></div>
             </div>
-            <details class="species-pivot">
-              <summary>📍 Pivot Points</summary>
-              <div class="pivot-grid">
-                <div class="pg-item"><label>R3</label><input type="number" id="dxyR3" step="0.01"></div>
-                <div class="pg-item"><label>R2</label><input type="number" id="dxyR2" step="0.01"></div>
-                <div class="pg-item"><label>R1</label><input type="number" id="dxyR1" step="0.01"></div>
-                <div class="pg-item"><label>P</label><input type="number" id="dxyP" step="0.01"></div>
-                <div class="pg-item"><label>S1</label><input type="number" id="dxyS1" step="0.01"></div>
-                <div class="pg-item"><label>S2</label><input type="number" id="dxyS2" step="0.01"></div>
-                <div class="pg-item"><label>S3</label><input type="number" id="dxyS3" step="0.01"></div>
-              </div>
-            </details>
+            <details class="species-pivot"><summary>📍 Pivot Points</summary><div class="pivot-grid"><div class="pg-item"><label>R3</label><input type="number" id="dxyR3" step="0.01"></div><div class="pg-item"><label>R2</label><input type="number" id="dxyR2" step="0.01"></div><div class="pg-item"><label>R1</label><input type="number" id="dxyR1" step="0.01"></div><div class="pg-item"><label>P</label><input type="number" id="dxyP" step="0.01"></div><div class="pg-item"><label>S1</label><input type="number" id="dxyS1" step="0.01"></div><div class="pg-item"><label>S2</label><input type="number" id="dxyS2" step="0.01"></div><div class="pg-item"><label>S3</label><input type="number" id="dxyS3" step="0.01"></div></div></details>
           </div>
-          <!-- CNH -->
           <div class="species-card fx">
             <div class="species-name">💴 离岸人民币 (USDCNH)</div>
             <div class="species-row">
@@ -192,20 +178,8 @@
               <div class="field"><label>最高</label><input type="number" id="cnhHigh" step="0.001"></div>
               <div class="field"><label>最低</label><input type="number" id="cnhLow" step="0.001"></div>
             </div>
-            <details class="species-pivot">
-              <summary>📍 Pivot Points</summary>
-              <div class="pivot-grid">
-                <div class="pg-item"><label>R3</label><input type="number" id="cnhR3" step="0.001"></div>
-                <div class="pg-item"><label>R2</label><input type="number" id="cnhR2" step="0.001"></div>
-                <div class="pg-item"><label>R1</label><input type="number" id="cnhR1" step="0.001"></div>
-                <div class="pg-item"><label>P</label><input type="number" id="cnhP" step="0.001"></div>
-                <div class="pg-item"><label>S1</label><input type="number" id="cnhS1" step="0.001"></div>
-                <div class="pg-item"><label>S2</label><input type="number" id="cnhS2" step="0.001"></div>
-                <div class="pg-item"><label>S3</label><input type="number" id="cnhS3" step="0.001"></div>
-              </div>
-            </details>
+            <details class="species-pivot"><summary>📍 Pivot Points</summary><div class="pivot-grid"><div class="pg-item"><label>R3</label><input type="number" id="cnhR3" step="0.001"></div><div class="pg-item"><label>R2</label><input type="number" id="cnhR2" step="0.001"></div><div class="pg-item"><label>R1</label><input type="number" id="cnhR1" step="0.001"></div><div class="pg-item"><label>P</label><input type="number" id="cnhP" step="0.001"></div><div class="pg-item"><label>S1</label><input type="number" id="cnhS1" step="0.001"></div><div class="pg-item"><label>S2</label><input type="number" id="cnhS2" step="0.001"></div><div class="pg-item"><label>S3</label><input type="number" id="cnhS3" step="0.001"></div></div></details>
           </div>
-          <!-- XAUUSD -->
           <div class="species-card cmd">
             <div class="species-name">🥇 伦敦金 (XAUUSD)</div>
             <div class="species-row">
@@ -215,20 +189,8 @@
               <div class="field"><label>最高</label><input type="number" id="xauHigh" step="0.1"></div>
               <div class="field"><label>最低</label><input type="number" id="xauLow" step="0.1"></div>
             </div>
-            <details class="species-pivot">
-              <summary>📍 Pivot Points</summary>
-              <div class="pivot-grid">
-                <div class="pg-item"><label>R3</label><input type="number" id="xauR3" step="0.1"></div>
-                <div class="pg-item"><label>R2</label><input type="number" id="xauR2" step="0.1"></div>
-                <div class="pg-item"><label>R1</label><input type="number" id="xauR1" step="0.1"></div>
-                <div class="pg-item"><label>P</label><input type="number" id="xauP" step="0.1"></div>
-                <div class="pg-item"><label>S1</label><input type="number" id="xauS1" step="0.1"></div>
-                <div class="pg-item"><label>S2</label><input type="number" id="xauS2" step="0.1"></div>
-                <div class="pg-item"><label>S3</label><input type="number" id="xauS3" step="0.1"></div>
-              </div>
-            </details>
+            <details class="species-pivot"><summary>📍 Pivot Points</summary><div class="pivot-grid"><div class="pg-item"><label>R3</label><input type="number" id="xauR3" step="0.1"></div><div class="pg-item"><label>R2</label><input type="number" id="xauR2" step="0.1"></div><div class="pg-item"><label>R1</label><input type="number" id="xauR1" step="0.1"></div><div class="pg-item"><label>P</label><input type="number" id="xauP" step="0.1"></div><div class="pg-item"><label>S1</label><input type="number" id="xauS1" step="0.1"></div><div class="pg-item"><label>S2</label><input type="number" id="xauS2" step="0.1"></div><div class="pg-item"><label>S3</label><input type="number" id="xauS3" step="0.1"></div></div></details>
           </div>
-          <!-- XAUBRT -->
           <div class="species-card cmd">
             <div class="species-name">🛢️ 金油比 (XAUBRT)</div>
             <div class="species-row">
@@ -238,20 +200,8 @@
               <div class="field"><label>最高</label><input type="number" id="gorHigh" step="0.01"></div>
               <div class="field"><label>最低</label><input type="number" id="gorLow" step="0.01"></div>
             </div>
-            <details class="species-pivot">
-              <summary>📍 Pivot Points</summary>
-              <div class="pivot-grid">
-                <div class="pg-item"><label>R3</label><input type="number" id="gorR3" step="0.01"></div>
-                <div class="pg-item"><label>R2</label><input type="number" id="gorR2" step="0.01"></div>
-                <div class="pg-item"><label>R1</label><input type="number" id="gorR1" step="0.01"></div>
-                <div class="pg-item"><label>P</label><input type="number" id="gorP" step="0.01"></div>
-                <div class="pg-item"><label>S1</label><input type="number" id="gorS1" step="0.01"></div>
-                <div class="pg-item"><label>S2</label><input type="number" id="gorS2" step="0.01"></div>
-                <div class="pg-item"><label>S3</label><input type="number" id="gorS3" step="0.01"></div>
-              </div>
-            </details>
+            <details class="species-pivot"><summary>📍 Pivot Points</summary><div class="pivot-grid"><div class="pg-item"><label>R3</label><input type="number" id="gorR3" step="0.01"></div><div class="pg-item"><label>R2</label><input type="number" id="gorR2" step="0.01"></div><div class="pg-item"><label>R1</label><input type="number" id="gorR1" step="0.01"></div><div class="pg-item"><label>P</label><input type="number" id="gorP" step="0.01"></div><div class="pg-item"><label>S1</label><input type="number" id="gorS1" step="0.01"></div><div class="pg-item"><label>S2</label><input type="number" id="gorS2" step="0.01"></div><div class="pg-item"><label>S3</label><input type="number" id="gorS3" step="0.01"></div></div></details>
           </div>
-          <!-- 国内金价 -->
           <div class="species-card dom">
             <div class="species-name">🇨🇳 国内金价</div>
             <div class="species-row">
@@ -261,18 +211,7 @@
               <div class="field"><label>最高</label><input type="number" id="todayH" step="0.01"></div>
               <div class="field"><label>最低</label><input type="number" id="todayL" step="0.01"></div>
             </div>
-            <details class="species-pivot">
-              <summary>📍 Pivot Points</summary>
-              <div class="pivot-grid">
-                <div class="pg-item"><label>R3</label><input type="number" id="pivotR3" step="0.01"></div>
-                <div class="pg-item"><label>R2</label><input type="number" id="pivotR2" step="0.01"></div>
-                <div class="pg-item"><label>R1</label><input type="number" id="pivotR1" step="0.01"></div>
-                <div class="pg-item"><label>P</label><input type="number" id="pivotP" step="0.01"></div>
-                <div class="pg-item"><label>S1</label><input type="number" id="pivotS1" step="0.01"></div>
-                <div class="pg-item"><label>S2</label><input type="number" id="pivotS2" step="0.01"></div>
-                <div class="pg-item"><label>S3</label><input type="number" id="pivotS3" step="0.01"></div>
-              </div>
-            </details>
+            <details class="species-pivot"><summary>📍 Pivot Points</summary><div class="pivot-grid"><div class="pg-item"><label>R3</label><input type="number" id="pivotR3" step="0.01"></div><div class="pg-item"><label>R2</label><input type="number" id="pivotR2" step="0.01"></div><div class="pg-item"><label>R1</label><input type="number" id="pivotR1" step="0.01"></div><div class="pg-item"><label>P</label><input type="number" id="pivotP" step="0.01"></div><div class="pg-item"><label>S1</label><input type="number" id="pivotS1" step="0.01"></div><div class="pg-item"><label>S2</label><input type="number" id="pivotS2" step="0.01"></div><div class="pg-item"><label>S3</label><input type="number" id="pivotS3" step="0.01"></div></div></details>
           </div>
         </div>
 
@@ -293,7 +232,7 @@
           </table>
           <div style="display:flex;gap:5px;margin-top:5px;align-items:flex-end;">
             <button class="btn-sm" id="addSlotBtn" style="flex:0 0 auto;">+ 仓位</button>
-            <div class="field" style="flex:1;"><label style="font-size:0.42rem;">可用资金(元)</label><input type="number" id="availFunds" step="0.01" style="padding:3px 5px;font-size:0.52rem;"></div>
+            <div class="field" style="flex:1;"><label style="font-size:0.42rem;">可用现金(元)</label><input type="number" id="availFunds" step="0.01" style="padding:3px 5px;font-size:0.52rem;"></div>
           </div>
         </div>
 
@@ -341,7 +280,7 @@
         <details class="model-group" open><summary>📊 回测统计</summary></details>
       </div>
     </div>
-    <div class="disclaimer">v2.0.7 | 品种色条·昨收·现开收高低·Pivot折叠·资金流降权</div>
+    <div class="disclaimer">v2.0.8 | 资金规划修复·可用现金语义明确·均匀分摊补仓</div>
   </div>
 
   <script>
@@ -803,7 +742,9 @@
         var getAddStatusLabel = function(nowPrc, holdCst, canAddFlag, rollingFailFlag, sigUpFlag) { if (canAddFlag) return { label: '可补', color: '#d94040' }; if (nowPrc < holdCst) { if (rollingFailFlag) return { label: '策略失效', color: '#c8882a' }; if (!sigUpFlag) return { label: '信号不足', color: '#c8882a' }; return { label: '胜率不足', color: '#c8882a' }; } return { label: '盈利', color: '#2a9d4a' }; };
         if (hasPosition) { var positionValue = totalHoldGrams * nowPrice; var positionPnLPct = totalHoldGrams > 0 ? ((nowPrice - holdCost) / holdCost) * 100 : 0; var positionPnL = (nowPrice - holdCost) * totalHoldGrams; var trendMultiplier = sig.adx >= 25 ? 0.7 : sig.adx < 18 ? 1.5 : 1.0;
           var atrGap = atr * trendMultiplier;
-          var maxLevels = Math.min(10, Math.floor(availFunds / (nowPrice * 1))); if (maxLevels < 1) maxLevels = 1; if (maxLevels > 6) maxLevels = 6;
+          // v2.0.8: 按500元/档均匀分摊，最多6档
+          var maxLevels = Math.min(6, Math.max(1, Math.floor(availFunds / 500)));
+          if (maxLevels > 6) maxLevels = 6;
           var startLevel = addCount;
           var addLevels = [];
           var totalGramsPlanned = 0;
