@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>黄金量化决策引擎 v2.0.7</title>
+  <style>
+    :root {
+      --bg: #f5f6f8; --card: #fff; --input-bg: #f3f4f6; --text: #1d1d1f;
+      --text-dim: #6b6b75; --text-muted: #999; --blue: #0066d4; --blue-bg: #eef4ff;
+      --red: #d94040; --green: #2a9d4a; --gold: #c8882a; --border: #e8eaef;
+      --shadow: 0 1px 3px rgba(0,0,0,0.04); --radius: 10px; --radius-sm: 6px;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root { --bg:#1a1a1e;--card:#252528;--input-bg:#2d2d32;--text:#e8e8ec;--text-dim:#9898a0;--text-muted:#6b6b75;--blue:#5ea3f0;--blue-bg:#1e3048;--red:#f06060;--green:#4cc960;--gold:#e0a030;--border:#36363b;--shadow:0 1px 3px rgba(0,0,0,0.3); }
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC',sans-serif; background:var(--bg); color:var(--text); padding:18px 22px; min-height:100vh; }
+    .app { max-width:1420px; margin:0 auto; }
+    .header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+    .header h1 { font-size:1rem; font-weight:700; }
+    .layout { display:grid; grid-template-columns:380px 1fr 320px; gap:10px; align-items:start; }
+    .panel-left { display:flex; flex-direction:column; gap:8px; }
+    .card { background:var(--card); border-radius:var(--radius); padding:10px 14px; box-shadow:var(--shadow); border:1px solid var(--border); }
+    .card-title { font-size:0.62rem; font-weight:600; color:var(--text-dim); letter-spacing:0.3px; margin-bottom:6px; display:flex; align-items:center; gap:4px; }
+    .card-title .dot { width:5px; height:5px; background:var(--gold); border-radius:50%; flex-shrink:0; }
+    .input-row { display:flex; gap:5px; margin-bottom:3px; align-items:flex-end; }
+    .input-row .field { flex:1; min-width:0; }
+    .input-row .field label { display:block; font-size:0.48rem; color:var(--text-muted); margin-bottom:1px; }
+    .input-row .field input,.input-row .field select { width:100%; padding:4px 6px; font-size:0.62rem; background:var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); outline:none; }
+    .input-row .field input:focus { border-color:var(--blue); }
+    .input-row .field input.readonly { color:var(--text-muted); background:transparent; border:1px dashed var(--border); }
+    textarea { width:100%; min-height:26px; padding:5px 7px; font-size:0.46rem; font-family:'SF Mono','Menlo',monospace; background:var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); outline:none; resize:vertical; line-height:1.3; }
+    .btn { width:100%; padding:7px; border-radius:var(--radius-sm); font-weight:600; font-size:0.65rem; border:none; cursor:pointer; }
+    .btn-primary { background:var(--blue); color:#fff; }
+    .btn-run { background:var(--blue); color:#fff; padding:10px; font-size:0.72rem; border-radius:var(--radius-sm); font-weight:700; border:none; cursor:pointer; width:100%; margin-top:6px; }
+    .btn-run:hover { background:#0055b0; }
+    .btn-ghost { background:var(--input-bg); color:var(--text-dim); }
+    .btn-sm { padding:4px 8px; font-size:0.5rem; border-radius:5px; border:1px solid var(--border); background:var(--input-bg); color:var(--text-dim); cursor:pointer; white-space:nowrap; }
+    .pill-row { display:flex; gap:3px; }
+    .pill { flex:1; text-align:center; padding:4px 2px; border-radius:var(--radius-sm); font-size:0.55rem; font-weight:500; cursor:pointer; border:1.5px solid var(--border); background:var(--input-bg); color:var(--text-dim); }
+    .pill.active { background:var(--blue-bg); border-color:var(--blue); color:var(--blue); font-weight:600; }
+    .pill.auto-active { background:#e8f5ff; border-color:#1a6ab0; color:#1a6ab0; font-weight:600; }
+    .panel-center { display:flex; flex-direction:column; gap:8px; }
+    .chart-stack { display:flex; flex-direction:column; gap:6px; }
+    .chart-area-lg { width:100%; height:280px; background:var(--card); border-radius:var(--radius); overflow:hidden; border:1px solid var(--border); position:relative; }
+    .chart-area { width:100%; height:190px; background:var(--card); border-radius:var(--radius); overflow:hidden; border:1px solid var(--border); position:relative; }
+    .chart-area-sm { width:100%; height:80px; background:var(--card); border-radius:var(--radius); overflow:hidden; border:1px solid var(--border); position:relative; }
+    .chart-area canvas,.chart-area-lg canvas,.chart-area-sm canvas { position:absolute; top:0; left:0; }
+    .chart-label { font-size:0.42rem; color:var(--text-dim); text-align:center; margin-top:2px; display:flex; justify-content:center; gap:10px; flex-wrap:wrap; }
+    .verdict { text-align:center; padding:10px; border-radius:var(--radius); font-weight:600; font-size:0.75rem; border:2px solid var(--border); }
+    .verdict-wait { background:var(--input-bg); color:var(--text-dim); }
+    .verdict-act { background:#fef5f5; border-color:#f0c0c0; color:#b03030; }
+    .verdict-chase { background:#fff8e8; border-color:#f0c848; color:#8b5a1a; }
+    .verdict-scalp { background:#f0f8ff; border-color:#80b8e0; color:#1a4a6a; }
+    .verdict-act .big-price,.verdict-chase .big-price,.verdict-scalp .big-price { font-size:1.2rem; color:var(--gold); font-weight:700; }
+    .verdict-warn { background:#fff0e8; border-color:#f0a858; color:#8b4a1a; }
+    .info-grid { display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:4px; }
+    .info-card { background:var(--card); border-radius:var(--radius); padding:7px 9px; border:1px solid var(--border); }
+    .info-card .info-name { font-size:0.48rem; color:var(--text-muted); margin-bottom:1px; }
+    .info-card .info-val { font-family:'SF Mono','Menlo',monospace; font-size:0.66rem; font-weight:600; }
+    .info-card .info-note { font-size:0.4rem; color:var(--text-dim); margin-top:1px; line-height:1.3; }
+    .panel-right { display:flex; flex-direction:column; gap:5px; }
+    .model-card { background:var(--card); border-radius:var(--radius); padding:7px 9px; border:1px solid var(--border); }
+    .model-card .model-name { font-size:0.5rem; font-weight:600; color:var(--text-dim); margin-bottom:1px; }
+    .model-card .model-val { font-family:'SF Mono','Menlo',monospace; font-size:0.62rem; font-weight:600; }
+    .model-card .model-note { font-size:0.41rem; color:var(--text-muted); margin-top:1px; line-height:1.3; }
+    .disclaimer { text-align:center; font-size:0.45rem; color:var(--text-muted); margin-top:10px; }
+    .toast { position:fixed; top:16px; left:50%; transform:translateX(-50%); padding:6px 14px; border-radius:8px; font-size:0.6rem; font-weight:500; z-index:100; opacity:0; transition:opacity 0.3s; pointer-events:none; }
+    .toast.show { opacity:1; }
+    .toast-err { background:#fde8e8; color:#b03030; }
+    .toast-ok { background:#e6f5e8; color:#2a7a2a; }
+    .species-card { padding:6px 10px 6px 8px; border-radius:var(--radius-sm); margin-bottom:4px; background:var(--card); border:1px solid var(--border); border-left:3px solid var(--border); }
+    .species-card.fx { border-left-color:#4a90d9; }
+    .species-card.cmd { border-left-color:#c8882a; }
+    .species-card.dom { border-left-color:#2a9d4a; }
+    .species-name { font-size:0.5rem; font-weight:600; color:var(--text-dim); margin-bottom:3px; display:flex; align-items:center; gap:3px; }
+    .species-row { display:flex; gap:4px; }
+    .species-row .field { flex:1; min-width:0; }
+    .species-row .field label { display:block; font-size:0.44rem; color:var(--text-muted); margin-bottom:1px; }
+    .species-row .field input { width:100%; padding:3px 5px; font-size:0.56rem; background:var(--input-bg); border:1px solid var(--border); border-radius:4px; color:var(--text); outline:none; text-align:center; }
+    .species-row .field input:focus { border-color:var(--blue); }
+    .species-row .field input.readonly { color:var(--text-muted); background:transparent; border:1px dashed var(--border); }
+    details.species-pivot { margin-top:3px; }
+    details.species-pivot summary { font-size:0.42rem; color:var(--text-muted); cursor:pointer; user-select:none; padding:1px 0; }
+    .pivot-grid { display:flex; gap:3px; margin-top:2px; }
+    .pivot-grid .pg-item { flex:1; min-width:0; text-align:center; }
+    .pivot-grid .pg-item label { display:block; font-size:0.38rem; color:var(--text-muted); }
+    .pivot-grid .pg-item input { width:100%; padding:2px 3px; font-size:0.48rem; background:var(--input-bg); border:1px solid var(--border); border-radius:3px; color:var(--text); outline:none; text-align:center; }
+    .macro-row { display:flex; gap:6px; align-items:flex-end; margin-bottom:6px; }
+    .macro-row .field { flex:1; min-width:0; }
+    .macro-row .field label { display:block; font-size:0.46rem; color:var(--text-muted); margin-bottom:1px; }
+    .macro-row .field input { width:100%; padding:4px 6px; font-size:0.58rem; background:var(--input-bg); border:1px solid var(--border); border-radius:var(--radius-sm); color:var(--text); outline:none; }
+    .macro-row .field input:focus { border-color:var(--blue); }
+    .macro-row .field.opt { flex:0.6; }
+    .macro-row .field.opt label { color:var(--text-muted); font-size:0.42rem; }
+    .position-table { width:100%; border-collapse:collapse; font-size:0.5rem; }
+    .position-table th { text-align:center; color:var(--text-muted); font-weight:500; font-size:0.42rem; padding:2px; border-bottom:1px solid var(--border); }
+    .position-table td { padding:2px 3px; text-align:center; border-bottom:0.5px solid var(--border); }
+    .position-table .slot-remove { cursor:pointer; color:#d94040; font-size:0.5rem; }
+    .key-insight { background:#fefdf5; border-left:3px solid var(--gold); padding:5px 8px; border-radius:0 6px 6px 0; font-size:0.46rem; color:#8a6d20; margin:4px 0; line-height:1.4; }
+    .legend-dot { display:inline-block; width:12px; height:2px; margin-right:2px; vertical-align:middle; border-radius:2px; }
+    .legend-dash { display:inline-block; width:12px; height:0; margin-right:2px; vertical-align:middle; border-top:1.5px dashed #999; }
+    .slider-row { display:flex; align-items:center; gap:4px; margin-bottom:2px; }
+    .slider-row label { font-size:0.46rem; color:var(--text-dim); min-width:44px; }
+    .slider-row input[type=range] { flex:1; }
+    .slider-row .slider-val { font-size:0.44rem; color:var(--blue); min-width:16px; text-align:right; font-weight:600; }
+    .ver-badge { font-size:0.45rem; background:#fef3d8; color:#a8701a; padding:2px 6px; border-radius:6px; font-weight:600; margin-left:4px; }
+    .logic-note { background:#fefdf5; border-left:3px solid #c8882a; padding:5px 8px; border-radius:0 6px 6px 0; font-size:0.44rem; color:#8a6d20; margin:4px 0; line-height:1.4; }
+    .position-row { display:flex; justify-content:space-between; padding:5px 8px; background:var(--input-bg); border-radius:5px; margin-bottom:2px; font-size:0.48rem; }
+    .position-row .pos-label { color:var(--text-dim); }
+    .position-row .pos-val { font-weight:600; }
+    .optimize-table { width:100%; border-collapse:collapse; font-size:0.4rem; margin-top:2px; }
+    .optimize-table th,.optimize-table td { padding:2px 3px; border-bottom:0.5px solid var(--border); text-align:center; }
+    .optimize-table .best { background:#fef5f5; font-weight:700; }
+    .auto-reason { background:#f0f7ff; border-left:3px solid #1a6ab0; padding:4px 7px; border-radius:0 5px 5px 0; font-size:0.43rem; color:#1a4a6a; margin:3px 0; line-height:1.4; }
+    .resonance-note { background:#f0fff0; border-left:3px solid #2a9d4a; padding:4px 7px; border-radius:0 5px 5px 0; font-size:0.43rem; color:#1a6a2a; margin:3px 0; line-height:1.4; }
+    .resonance-warn { background:#fff8f0; border-left:3px solid #c8882a; padding:4px 7px; border-radius:0 5px 5px 0; font-size:0.43rem; color:#8a5a1a; margin:3px 0; line-height:1.4; }
+    .warn-inline { background:#fff8f0; border-left:3px solid #d94040; padding:3px 5px; border-radius:0 4px 4px 0; font-size:0.38rem; color:#8a3a1a; margin:3px 0; }
+    .plan-summary { background:#fefdf5; border:1px solid #e0d890; border-radius:7px; padding:7px 10px; margin-top:5px; }
+    .plan-summary .plan-item { display:flex; justify-content:space-between; padding:1px 0; font-size:0.46rem; }
+    .plan-summary .plan-item .plan-label { color:var(--text-dim); }
+    .plan-summary .plan-item .plan-val { font-weight:600; font-family:'SF Mono','Menlo',monospace; }
+    .plan-summary .plan-divider { border-top:0.5px dashed var(--border); margin:2px 0; }
+    .plan-priority { background:#f0f8ff; border-left:3px solid #1a6ab0; padding:4px 7px; border-radius:0 5px 5px 0; font-size:0.4rem; color:#1a4a6a; margin:3px 0; line-height:1.5; }
+    .stop-reminder { background:#fff8f0; border-left:3px solid #d94040; padding:4px 7px; border-radius:0 5px 5px 0; font-size:0.4rem; color:#8a3a1a; margin:3px 0; line-height:1.5; }
+    .decay-summary { font-size:0.4rem; color:var(--text-dim); text-align:center; margin-top:1px; }
+    .scalp-card { background:#f8faff; border:1px solid #c0d8f0; border-radius:7px; padding:5px 9px; margin-top:3px; }
+    .scalp-card .scalp-row { display:flex; justify-content:space-between; padding:1px 0; font-size:0.44rem; }
+    .scalp-card .scalp-label { color:var(--text-dim); }
+    .scalp-card .scalp-val { font-weight:600; font-family:'SF Mono','Menlo',monospace; }
+    input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button { -webkit-appearance:none; margin:0; }
+    input[type=number] { -moz-appearance:textfield; }
+    .tech-bar-row { display:flex; align-items:center; gap:4px; margin-bottom:1px; font-size:0.38rem; }
+    .tech-bar-label { width:32px; text-align:right; color:var(--text-dim); }
+    .tech-bar-track { flex:1; height:5px; background:linear-gradient(to right, #2a9d4a, #e8eaef 50%, #d94040); border-radius:3px; position:relative; }
+    .tech-bar-fill { position:absolute; top:-1px; width:2px; height:8px; background:var(--text); border-radius:1px; }
+    .tech-bar-val { width:28px; font-size:0.36rem; color:var(--text-muted); font-family:'SF Mono','Menlo',monospace; }
+    .dual-col { display:grid; grid-template-columns:1fr 1fr; gap:5px; }
+    details.model-group { margin-bottom:3px; }
+    details.model-group summary { font-size:0.48rem; font-weight:600; color:var(--text-dim); cursor:pointer; padding:2px 0; user-select:none; }
+    details.model-group .model-card { margin-top:3px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="toast toast-err" id="toastErr"></div>
+    <div class="toast toast-ok" id="toastOk"></div>
+    <div class="header"><h1>📊 黄金量化决策引擎<span class="ver-badge">v2.0.7</span></h1></div>
+    <div class="layout">
+      <!-- ========== 左栏 ========== -->
+      <div class="panel-left">
+        <!-- 品种数据 -->
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>品种数据</div>
+          <!-- 宏观总览行 -->
+          <div class="macro-row">
+            <div class="field"><label>美债10Y (%)</label><input type="number" id="us10y" step="0.01"></div>
+            <div class="field"><label>VIX</label><input type="number" id="vix" step="0.01"></div>
+            <div class="field opt"><label>资金流(亿·可选)</label><input type="number" id="fundFlow" step="0.01"></div>
+          </div>
+          <!-- DXY -->
+          <div class="species-card fx">
+            <div class="species-name">💵 美元指数 (DXY)</div>
+            <div class="species-row">
+              <div class="field"><label>现价</label><input type="number" id="usdx" step="0.01"></div>
+              <div class="field"><label>今开</label><input type="number" id="dxyOpen" step="0.01"></div>
+              <div class="field"><label>昨收</label><input type="number" id="dxyPrev" step="0.01"></div>
+              <div class="field"><label>最高</label><input type="number" id="dxyHigh" step="0.01"></div>
+              <div class="field"><label>最低</label><input type="number" id="dxyLow" step="0.01"></div>
+            </div>
+            <details class="species-pivot">
+              <summary>📍 Pivot Points</summary>
+              <div class="pivot-grid">
+                <div class="pg-item"><label>R3</label><input type="number" id="dxyR3" step="0.01"></div>
+                <div class="pg-item"><label>R2</label><input type="number" id="dxyR2" step="0.01"></div>
+                <div class="pg-item"><label>R1</label><input type="number" id="dxyR1" step="0.01"></div>
+                <div class="pg-item"><label>P</label><input type="number" id="dxyP" step="0.01"></div>
+                <div class="pg-item"><label>S1</label><input type="number" id="dxyS1" step="0.01"></div>
+                <div class="pg-item"><label>S2</label><input type="number" id="dxyS2" step="0.01"></div>
+                <div class="pg-item"><label>S3</label><input type="number" id="dxyS3" step="0.01"></div>
+              </div>
+            </details>
+          </div>
+          <!-- CNH -->
+          <div class="species-card fx">
+            <div class="species-name">💴 离岸人民币 (USDCNH)</div>
+            <div class="species-row">
+              <div class="field"><label>现价</label><input type="number" id="cny" step="0.001"></div>
+              <div class="field"><label>今开</label><input type="number" id="cnhOpen" step="0.001"></div>
+              <div class="field"><label>昨收</label><input type="number" id="cnhPrev" step="0.001"></div>
+              <div class="field"><label>最高</label><input type="number" id="cnhHigh" step="0.001"></div>
+              <div class="field"><label>最低</label><input type="number" id="cnhLow" step="0.001"></div>
+            </div>
+            <details class="species-pivot">
+              <summary>📍 Pivot Points</summary>
+              <div class="pivot-grid">
+                <div class="pg-item"><label>R3</label><input type="number" id="cnhR3" step="0.001"></div>
+                <div class="pg-item"><label>R2</label><input type="number" id="cnhR2" step="0.001"></div>
+                <div class="pg-item"><label>R1</label><input type="number" id="cnhR1" step="0.001"></div>
+                <div class="pg-item"><label>P</label><input type="number" id="cnhP" step="0.001"></div>
+                <div class="pg-item"><label>S1</label><input type="number" id="cnhS1" step="0.001"></div>
+                <div class="pg-item"><label>S2</label><input type="number" id="cnhS2" step="0.001"></div>
+                <div class="pg-item"><label>S3</label><input type="number" id="cnhS3" step="0.001"></div>
+              </div>
+            </details>
+          </div>
+          <!-- XAUUSD -->
+          <div class="species-card cmd">
+            <div class="species-name">🥇 伦敦金 (XAUUSD)</div>
+            <div class="species-row">
+              <div class="field"><label>现价</label><input type="number" id="london" step="1"></div>
+              <div class="field"><label>今开</label><input type="number" id="xauOpen" step="0.1"></div>
+              <div class="field"><label>昨收</label><input type="number" id="xauPrev" step="0.1"></div>
+              <div class="field"><label>最高</label><input type="number" id="xauHigh" step="0.1"></div>
+              <div class="field"><label>最低</label><input type="number" id="xauLow" step="0.1"></div>
+            </div>
+            <details class="species-pivot">
+              <summary>📍 Pivot Points</summary>
+              <div class="pivot-grid">
+                <div class="pg-item"><label>R3</label><input type="number" id="xauR3" step="0.1"></div>
+                <div class="pg-item"><label>R2</label><input type="number" id="xauR2" step="0.1"></div>
+                <div class="pg-item"><label>R1</label><input type="number" id="xauR1" step="0.1"></div>
+                <div class="pg-item"><label>P</label><input type="number" id="xauP" step="0.1"></div>
+                <div class="pg-item"><label>S1</label><input type="number" id="xauS1" step="0.1"></div>
+                <div class="pg-item"><label>S2</label><input type="number" id="xauS2" step="0.1"></div>
+                <div class="pg-item"><label>S3</label><input type="number" id="xauS3" step="0.1"></div>
+              </div>
+            </details>
+          </div>
+          <!-- XAUBRT -->
+          <div class="species-card cmd">
+            <div class="species-name">🛢️ 金油比 (XAUBRT)</div>
+            <div class="species-row">
+              <div class="field"><label>现价</label><input type="number" id="brent" step="0.01"></div>
+              <div class="field"><label>今开</label><input type="number" id="gorOpen" step="0.01"></div>
+              <div class="field"><label>昨收</label><input type="number" id="gorPrev" step="0.01"></div>
+              <div class="field"><label>最高</label><input type="number" id="gorHigh" step="0.01"></div>
+              <div class="field"><label>最低</label><input type="number" id="gorLow" step="0.01"></div>
+            </div>
+            <details class="species-pivot">
+              <summary>📍 Pivot Points</summary>
+              <div class="pivot-grid">
+                <div class="pg-item"><label>R3</label><input type="number" id="gorR3" step="0.01"></div>
+                <div class="pg-item"><label>R2</label><input type="number" id="gorR2" step="0.01"></div>
+                <div class="pg-item"><label>R1</label><input type="number" id="gorR1" step="0.01"></div>
+                <div class="pg-item"><label>P</label><input type="number" id="gorP" step="0.01"></div>
+                <div class="pg-item"><label>S1</label><input type="number" id="gorS1" step="0.01"></div>
+                <div class="pg-item"><label>S2</label><input type="number" id="gorS2" step="0.01"></div>
+                <div class="pg-item"><label>S3</label><input type="number" id="gorS3" step="0.01"></div>
+              </div>
+            </details>
+          </div>
+          <!-- 国内金价 -->
+          <div class="species-card dom">
+            <div class="species-name">🇨🇳 国内金价</div>
+            <div class="species-row">
+              <div class="field"><label>现价</label><input type="number" id="nowPrice" step="0.01"></div>
+              <div class="field"><label>今开</label><input type="number" id="todayO" step="0.01"></div>
+              <div class="field"><label>昨收</label><input type="number" id="domPrev" step="0.01" class="readonly" readonly></div>
+              <div class="field"><label>最高</label><input type="number" id="todayH" step="0.01"></div>
+              <div class="field"><label>最低</label><input type="number" id="todayL" step="0.01"></div>
+            </div>
+            <details class="species-pivot">
+              <summary>📍 Pivot Points</summary>
+              <div class="pivot-grid">
+                <div class="pg-item"><label>R3</label><input type="number" id="pivotR3" step="0.01"></div>
+                <div class="pg-item"><label>R2</label><input type="number" id="pivotR2" step="0.01"></div>
+                <div class="pg-item"><label>R1</label><input type="number" id="pivotR1" step="0.01"></div>
+                <div class="pg-item"><label>P</label><input type="number" id="pivotP" step="0.01"></div>
+                <div class="pg-item"><label>S1</label><input type="number" id="pivotS1" step="0.01"></div>
+                <div class="pg-item"><label>S2</label><input type="number" id="pivotS2" step="0.01"></div>
+                <div class="pg-item"><label>S3</label><input type="number" id="pivotS3" step="0.01"></div>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- 持仓明细 -->
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>持仓明细<span id="posSummary" style="font-size:0.45rem;color:var(--text-muted);margin-left:auto;"></span></div>
+          <table class="position-table">
+            <thead><tr><th>类型</th><th>克数</th><th>成本价</th><th>浮动盈亏</th><th></th></tr></thead>
+            <tbody id="posTbody">
+              <tr data-slot="0">
+                <td><select class="slot-type" style="width:100%;padding:2px;font-size:0.48rem;background:var(--input-bg);border:1px solid var(--border);border-radius:3px;color:var(--text);"><option value="long">长期</option><option value="add">补仓</option><option value="scalp">超短</option></select></td>
+                <td><input type="number" step="0.01" class="slot-grams" style="width:100%;padding:2px 3px;font-size:0.48rem;background:var(--input-bg);border:1px solid var(--border);border-radius:3px;color:var(--text);text-align:center;"></td>
+                <td><input type="number" step="0.01" class="slot-cost" style="width:100%;padding:2px 3px;font-size:0.48rem;background:var(--input-bg);border:1px solid var(--border);border-radius:3px;color:var(--text);text-align:center;"></td>
+                <td class="slot-pnl" style="font-size:0.43rem;color:var(--text-muted);">-</td>
+                <td></td>
+              </tr>
+            </tbody>
+          </table>
+          <div style="display:flex;gap:5px;margin-top:5px;align-items:flex-end;">
+            <button class="btn-sm" id="addSlotBtn" style="flex:0 0 auto;">+ 仓位</button>
+            <div class="field" style="flex:1;"><label style="font-size:0.42rem;">可用资金(元)</label><input type="number" id="availFunds" step="0.01" style="padding:3px 5px;font-size:0.52rem;"></div>
+          </div>
+        </div>
+
+        <!-- 历史数据 -->
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>历史数据<span id="dataSummary" style="font-size:0.4rem;color:var(--text-muted);margin-left:auto;"></span></div>
+          <div style="display:flex;gap:4px;">
+            <textarea id="pasteArea" rows="1" style="flex:1;min-height:26px;font-size:0.44rem;"></textarea>
+            <button class="btn-sm" id="pasteBtn" style="flex:0 0 auto;">解析</button>
+            <button class="btn-sm" id="clearBtn" style="flex:0 0 auto;">清空</button>
+          </div>
+        </div>
+
+        <!-- 参数 -->
+        <div class="card">
+          <div class="card-title"><span class="dot"></span>参数</div>
+          <div class="input-row">
+            <div class="field"><label>目标年化%</label><input type="number" id="targetPct" step="0.1" min="0"></div>
+            <div class="field"><label>克数</label><input type="number" id="grams" step="0.01" min="0.01"></div>
+            <div class="field"><label>手续费%</label><input type="number" id="feeRate" step="0.01" value="0.4"></div>
+            <div class="field"><label>周期</label><select id="forecastDays"><option value="1">1天</option><option value="3">3天</option><option value="5" selected>5天</option><option value="7">7天</option><option value="10">10天</option><option value="14">14天</option></select></div>
+          </div>
+          <div class="pill-row" style="margin-top:3px;"><div class="pill" data-risk="conservative">保守</div><div class="pill" data-risk="neutral">中性</div><div class="pill" data-risk="aggressive">激进</div><div class="pill auto-active" data-risk="auto">🤖 自动</div></div>
+          <div class="slider-row" style="margin-top:4px;"><label>ADX阈值</label><input type="range" id="adxThreshold" min="15" max="30" value="20" step="1"><span class="slider-val" id="adxThVal">20</span></div>
+          <div class="slider-row"><label>技术分阈值</label><input type="range" id="techThreshold" min="2" max="6" value="3" step="1"><span class="slider-val" id="techThVal">3</span></div>
+          <button class="btn btn-ghost" id="optimizeBtn" style="margin-top:3px;background:#1a6ab0;color:#fff;">🔍 自动寻优阈值</button>
+          <button class="btn-run" id="runBtn">🚀 运行分析</button>
+        </div>
+      </div>
+
+      <!-- ========== 中栏 ========== -->
+      <div class="panel-center">
+        <div class="chart-stack">
+          <div><div class="chart-area-lg"><canvas id="klineChart"></canvas></div><div class="chart-label">📈 金价K线 · 红涨绿跌 · 黄线MA20</div></div>
+          <div><div class="chart-area"><canvas id="equityChart"></canvas></div><div class="chart-label"><span><span class="legend-dot" style="background:#d94040;"></span>策略权益</span><span><span class="legend-dash"></span>随机对比</span></div></div>
+          <div><div class="chart-area-sm"><canvas id="decayChart"></canvas></div><div class="decay-summary" id="decaySummary"></div></div>
+        </div>
+        <div id="outputArea"></div>
+      </div>
+
+      <!-- ========== 右栏 ========== -->
+      <div class="panel-right" id="modelPanel">
+        <details class="model-group" open><summary>📡 信号分析</summary></details>
+        <details class="model-group" open><summary>📦 持仓与补仓</summary></details>
+        <details class="model-group" open><summary>📊 回测统计</summary></details>
+      </div>
+    </div>
+    <div class="disclaimer">v2.0.7 | 品种色条·昨收·现开收高低·Pivot折叠·资金流降权</div>
+  </div>
+
+  <script>
+    (function() {
+      var $ = function(id) { return document.getElementById(id); };
+      var histData = [];
+      var riskLevel = 'auto';
+      var slotCounter = 1;
+      function gv(id) { var e = $(id); if (!e) return NaN; var v = e.value.trim(); return v === '' ? NaN : parseFloat(v); }
+      function toast(msg, cls) { var e = $(cls === 'err' ? 'toastErr' : 'toastOk');
+        e.textContent = msg;
+        e.classList.add('show');
+        setTimeout(function() { e.classList.remove('show'); }, 2500); }
+      document.addEventListener('wheel', function(e) { if (e.target.tagName === 'INPUT' && e.target.type === 'number' && document.activeElement === e.target) { e.preventDefault(); } }, { passive: false });
+      document.addEventListener('keydown', function(e) {
+        if (e.target.tagName !== 'INPUT' || e.target.type !== 'number') return;
+        var allInputs = document.querySelectorAll('input[type=number]');
+        var idx = Array.prototype.indexOf.call(allInputs, e.target);
+        if (idx < 0) return;
+        if (e.key === 'Enter') { e.preventDefault(); if (idx < allInputs.length - 1) { allInputs[idx + 1].focus();
+            allInputs[idx + 1].select(); } else { $('runBtn').click(); } } else if (e.key === 'ArrowDown') { e.preventDefault(); if (idx < allInputs.length - 1) { allInputs[idx + 1].focus();
+            allInputs[idx + 1].select(); } } else if (e.key === 'ArrowUp') { e.preventDefault(); if (idx > 0) { allInputs[idx - 1].focus();
+            allInputs[idx - 1].select(); } }
+      });
+      document.querySelectorAll('.pill').forEach(function(p) { p.addEventListener('click', function() { document.querySelectorAll('.pill').forEach(function(pp) { pp.classList.remove('active');
+            pp.classList.remove('auto-active'); }); if (this.dataset.risk === 'auto') { this.classList.add('auto-active'); } else { this.classList.add('active'); }
+          riskLevel = this.dataset.risk; }); });
+      $('adxThreshold').addEventListener('input', function() { $('adxThVal').textContent = this.value; });
+      $('techThreshold').addEventListener('input', function() { $('techThVal').textContent = this.value; });
+
+      function addSlot() { slotCounter++; var tr = document.createElement('tr');
+        tr.setAttribute('data-slot', slotCounter);
+        tr.innerHTML = '<td><select class="slot-type" style="width:100%;padding:2px;font-size:0.48rem;background:var(--input-bg);border:1px solid var(--border);border-radius:3px;color:var(--text);"><option value="long">长期</option><option value="add">补仓</option><option value="scalp">超短</option></select></td>' +
+          '<td><input type="number" step="0.01" class="slot-grams" style="width:100%;padding:2px 3px;font-size:0.48rem;background:var(--input-bg);border:1px solid var(--border);border-radius:3px;color:var(--text);text-align:center;"></td>' +
+          '<td><input type="number" step="0.01" class="slot-cost" style="width:100%;padding:2px 3px;font-size:0.48rem;background:var(--input-bg);border:1px solid var(--border);border-radius:3px;color:var(--text);text-align:center;"></td>' +
+          '<td class="slot-pnl" style="font-size:0.43rem;color:var(--text-muted);">-</td>' +
+          '<td><span class="slot-remove" onclick="this.closest(\'tr\').remove();updateSlotLabels();updatePosSummary();">✕</span></td>';
+        $('posTbody').appendChild(tr);
+        updateSlotLabels(); }
+      function updateSlotLabels() { var rows = document.querySelectorAll('#posTbody tr[data-slot]'); for (var i = 0; i < rows.length; i++) { rows[i].setAttribute('data-slot', i + 1); } }
+      function updatePosSummary() { var rows = document.querySelectorAll('#posTbody tr[data-slot]'); var totalG = 0,
+          totalV = 0; var nowPx = gv('nowPrice'); for (var i = 0; i < rows.length; i++) { var g = parseFloat(rows[i].querySelector('.slot-grams').value) || 0; var c = parseFloat(rows[i].querySelector('.slot-cost').value) || 0;
+          totalG += g;
+          totalV += g * c;
+          var pnlCell = rows[i].querySelector('.slot-pnl'); if (g > 0 && c > 0 && !isNaN(nowPx)) { var pnlPct = ((nowPx - c) / c * 100); var clr = pnlPct >= 0 ? '#d94040' : '#2a9d4a';
+            pnlCell.innerHTML = '<span style="color:' + clr + ';">' + (pnlPct >= 0 ? '+' : '') + pnlPct.toFixed(2) + '%</span>'; } else { pnlCell.textContent = '-'; } } if (totalG > 0) { $('posSummary').textContent = totalG.toFixed(2) + '克·均价¥' + (totalV / totalG).toFixed(2); } else { $('posSummary').textContent = ''; } }
+      $('addSlotBtn').addEventListener('click', addSlot);
+      document.addEventListener('input', function(e) { if (e.target.classList.contains('slot-grams') || e.target.classList.contains('slot-cost') || e.target.id === 'nowPrice') { updatePosSummary(); } });
+      document.addEventListener('change', function(e) { if (e.target.classList.contains('slot-type')) { updatePosSummary(); } });
+      function collectPositions() { var rows = document.querySelectorAll('#posTbody tr[data-slot]'); var positions = []; for (var i = 0; i < rows.length; i++) { var g = parseFloat(rows[i].querySelector('.slot-grams').value) || 0; var c = parseFloat(rows[i].querySelector('.slot-cost').value) || 0; var t = rows[i].querySelector('.slot-type').value; if (g > 0 && c > 0) { positions.push({ grams: g, cost: c, type: t }); } } return positions; }
+
+      function intradayResonance() {
+        var score = 0,
+          reasons = [];
+        var xauOpen = gv('xauOpen'),
+          xauPrev = gv('xauPrev'),
+          xauNow = gv('london');
+        var dxyOpen = gv('dxyOpen'),
+          dxyPrev = gv('dxyPrev'),
+          dxyNow = gv('usdx');
+        var cnhOpen = gv('cnhOpen'),
+          cnhPrev = gv('cnhPrev'),
+          cnhNow = gv('cny');
+        var gorOpen = gv('gorOpen'),
+          gorPrev = gv('gorPrev'),
+          gorNow = gv('brent');
+        var hasData = false;
+        var xauBase = !isNaN(xauPrev) ? xauPrev : xauOpen;
+        var dxyBase = !isNaN(dxyPrev) ? dxyPrev : dxyOpen;
+        if (!isNaN(xauNow) && !isNaN(xauBase) && !isNaN(dxyNow) && !isNaN(dxyBase)) { hasData = true; if (xauNow > xauBase && dxyNow < dxyBase) { score += 2;
+            reasons.push('伦敦金走强+美元走弱·日内偏多'); } else if (xauNow < xauBase && dxyNow > dxyBase) { score -= 1;
+            reasons.push('伦敦金走弱+美元走强·日内偏空'); } }
+        var cnhBase = !isNaN(cnhPrev) ? cnhPrev : cnhOpen;
+        if (!isNaN(cnhNow) && !isNaN(cnhBase)) { hasData = true; if (cnhNow > cnhBase) { score += 1;
+            reasons.push('人民币日内贬值·利好国内金价'); } }
+        var gorBase = !isNaN(gorPrev) ? gorPrev : gorOpen;
+        if (!isNaN(gorNow) && !isNaN(gorBase) && gorBase > 0) { hasData = true; var gorChange = Math.abs(gorNow - gorBase) / gorBase; if (gorChange > 0.02) { score -= 1;
+            reasons.push('金油比日内剧烈波动·谨慎'); } }
+        return { score: score, reasons: reasons, hasData: hasData };
+      }
+
+      function parseData(text) { var cleaned = text.replace(/,/g, ''); var lines = cleaned.split(/[\n\r]+/); var seen = {},
+          result = []; for (var li = 0; li < lines.length; li++) { var t = lines[li].trim(); if (!t || /^(序号|日期|合约)/.test(t)) continue; var cols = t.split(/[\t]+|\s{2,}/); if (cols.length < 8) continue; var dc = -1; for (var ci = 0; ci < cols.length; ci++) { if (/^\d{4}-\d{2}-\d{2}$/.test(cols[ci])) { dc = ci; break; } } if (dc < 0) continue; var date = cols[dc]; if (seen[date]) continue;
+          seen[date] = true; var hasSeq = /^\d+$/.test(cols[0]) && cols.length >= 13; var o, h, l, c, vol, dir; if (hasSeq) { o = +cols[3];
+            h = +cols[4];
+            l = +cols[5];
+            c = +cols[6];
+            vol = Math.round(+(cols[10] || 0));
+            dir = (cols[13] || '').trim(); } else { o = +cols[2];
+            h = +cols[3];
+            l = +cols[4];
+            c = +cols[5];
+            vol = Math.round(+(cols[9] || 0));
+            dir = (cols[12] || '').trim(); } if (isNaN(o)) continue; var dc2 = ''; if (/多支付给空|多付空/.test(dir)) dc2 = 'long'; else if (/空支付给多|空付多/.test(dir)) dc2 = 'short';
+          result.push({ date: date, o: o, h: h, l: l, c: c, vol: vol, dir: dc2 }); }
+        result.sort(function(a, b) { return a.date.localeCompare(b.date); }); return result; }
+      function calcATR(data, period) { period = period || 14; var trs = []; for (var i = 1; i < data.length; i++) trs.push(Math.max(data[i].h - data[i].l, Math.abs(data[i].h - data[i - 1].c), Math.abs(data[i].l - data[i - 1].c))); if (trs.length === 0) return 1; var useP = Math.min(period, trs.length), sum = 0; for (var i = trs.length - useP; i < trs.length; i++) sum += trs[i]; return sum / useP; }
+      function calcBollinger(c, p, m) { p = p || 20;
+        m = m || 2; var s = c.slice(-p), sum = 0; for (var i = 0; i < s.length; i++) sum += s[i]; var mean = sum / s.length, vSum = 0; for (var i = 0; i < s.length; i++) vSum += Math.pow(s[i] - mean, 2); var std = Math.sqrt(vSum / s.length); var upper = mean + m * std,
+          lower = mean - m * std,
+          now = c[c.length - 1]; return { upper: upper, lower: lower, position: Math.min(1, Math.max(0, (now - lower) / (upper - lower))), width: (upper - lower) / (now || 1) }; }
+      function calcRSI(c, p) { p = Math.min(p, c.length - 1); if (p < 1) return 50; var g = 0,
+          l = 0; for (var i = c.length - p; i < c.length; i++) { var d = c[i] - c[i - 1]; if (d > 0) g += d;
+          else l += Math.abs(d); } var ag = g / p,
+          al = l / p; if (al === 0) return 100; return 100 - (100 / (1 + ag / al)); }
+      function calcADX(data, period) { period = period || 14; if (data.length < period * 2 + 1) return { adx: 20, plusDI: 50, minusDI: 50, slope: 0 }; var trs = [],
+          pdm = [],
+          ndm = []; for (var i = 1; i < data.length; i++) { trs.push(Math.max(data[i].h - data[i].l, Math.abs(data[i].h - data[i - 1].c), Math.abs(data[i].l - data[i - 1].c))); var up = data[i].h - data[i - 1].h,
+            down = data[i - 1].l - data[i].l;
+          pdm.push(up > down && up > 0 ? up : 0);
+          ndm.push(down > up && down > 0 ? down : 0); } var atr = 0,
+          pdi = 0,
+          ndi = 0; for (var i = trs.length - period; i < trs.length; i++) { atr += trs[i];
+          pdi += pdm[i];
+          ndi += ndm[i]; }
+        atr /= period;
+        pdi = (pdi / period) / atr * 100;
+        ndi = (ndi / period) / atr * 100; var dx = Math.abs(pdi - ndi) / (pdi + ndi || 1) * 100; var prevATR = 0,
+          prevPDI = 0,
+          prevNDI = 0; for (var i = Math.max(0, trs.length - period * 2); i < trs.length - period; i++) { prevATR += trs[i];
+          prevPDI += pdm[i];
+          prevNDI += ndm[i]; }
+        prevATR /= period;
+        prevPDI = (prevPDI / period) / (prevATR || 1) * 100;
+        prevNDI = (prevNDI / period) / (prevATR || 1) * 100; var prevDX = Math.abs(prevPDI - prevNDI) / (prevPDI + prevNDI || 1) * 100; var slope = prevDX > 0 ? (dx - prevDX) / prevDX : 0; return { adx: dx, plusDI: pdi, minusDI: ndi, slope: slope }; }
+      function bayes(pw, tO, np, tH, tL) { var ir = (np - tO) / tO,
+          ru = (np - tL) / (tH - tL || 1),
+          lh = 0.5 + ir * 5 + (0.5 - ru) * 0.1; lh = Math.max(0.15, Math.min(0.85, lh)); return Math.max(0.12, Math.min(0.88, (pw * lh) / (pw * lh + (1 - pw) * (1 - lh)))); }
+      function seededRandom(seed) { var x = Math.sin(seed) * 10000; return x - Math.floor(x); }
+      function identifyPattern(histClosed) { if (histClosed.length < 3) return { name: '数据不足', desc: '', bullish: null }; var d0 = histClosed[histClosed.length - 1],
+          d1 = histClosed[histClosed.length - 2],
+          d2 = histClosed[histClosed.length - 3]; var b0 = d0.c - d0.o,
+          b1 = d1.c - d1.o,
+          b2 = d2.c - d2.o; var r0 = d0.h - d0.l,
+          r1 = d1.h - d1.l; if (r0 === 0 || r1 === 0) return { name: '十字星', desc: '多空平衡', bullish: null }; var br0 = Math.abs(b0) / r0,
+          br1 = Math.abs(b1) / r1; var ls0 = (Math.min(d0.o, d0.c) - d0.l) / r0,
+          us0 = (d0.h - Math.max(d0.o, d0.c)) / r0; if (br0 < 0.3 && ls0 > 0.6 && us0 < 0.2) return { name: '🔨 锤子线', desc: '有人抄底', bullish: true }; if (b1 < 0 && b0 > 0 && d0.o <= d1.c && d0.c >= d1.o && br0 > 0.4) return { name: '📈 看涨吞没', desc: '多头反攻', bullish: true }; if (b1 > 0 && b0 < 0 && d0.o > d1.c && d0.c < d1.o + Math.abs(b1) / 2 && br0 > 0.4) return { name: '☁️ 乌云盖顶', desc: '可能见顶', bullish: false }; if (b2 < 0 && Math.abs(b2) / (d2.h - d2.l || 1) > 0.4 && br1 < 0.2 && b0 > 0 && br0 > 0.3) return { name: '🌟 早晨之星', desc: '黎明信号', bullish: true }; return { name: b0 > 0 ? '阳线' : '阴线', desc: '正常', bullish: b0 > 0 }; }
+      function marketRegime(closes) { if (closes.length < 60) return { regime: '数据不足', desc: '' }; var now = closes[closes.length - 1],
+          ago = closes[Math.max(0, closes.length - 60)]; var trend = ((now - ago) / ago) * 100; if (trend < -8) return { regime: '🐻 熊市', desc: '近3月跌' + trend.toFixed(1) + '%' }; if (trend > 8) return { regime: '🐂 牛市', desc: '近3月涨' + trend.toFixed(1) + '%' }; return { regime: '📊 震荡', desc: '近3月' + (trend > 0 ? '+' : '') + trend.toFixed(1) + '%' }; }
+      function singlePivotSignal(price, piv) { if (!piv || isNaN(piv.p) || isNaN(piv.s1)) return { score: 0, reasons: [] }; var score = 0,
+          reasons = []; var s1 = piv.s1,
+          s2 = piv.s2,
+          s3 = piv.s3,
+          r1 = piv.r1,
+          r2 = piv.r2,
+          r3 = piv.r3,
+          p = piv.p; if (Math.abs(price - s1) / price < 0.003) { score += 2;
+          reasons.push('近S1'); } else if (!isNaN(s2) && Math.abs(price - s2) / price < 0.003) { score += 2;
+          reasons.push('近S2'); } else if (!isNaN(s3) && Math.abs(price - s3) / price < 0.003) { score += 2;
+          reasons.push('近S3'); } if (Math.abs(price - p) / price < 0.003) { score += 1;
+          reasons.push('近P'); } if (!isNaN(r1) && price > r1) { score += 1;
+          reasons.push('破R1'); } return { score: score, reasons: reasons }; }
+      function detectGap(histClosed) { if (histClosed.length < 2) return { hasGap: false, type: '', desc: '', score: 0 }; var today = histClosed[histClosed.length - 1]; var yesterday = histClosed[histClosed.length - 2]; var gapUp = today.l > yesterday.h; var gapDown = today.h < yesterday.l; if (gapUp) { var gapSize = ((today.l - yesterday.h) / yesterday.h) * 100; return { hasGap: true, type: '向上缺口', desc: '跳空高开' + gapSize.toFixed(2) + '%', score: 2, bullish: true }; } if (gapDown) { var gapSize = ((yesterday.l - today.h) / yesterday.l) * 100; return { hasGap: true, type: '向下缺口', desc: '跳空低开' + gapSize.toFixed(2) + '%', score: -2, bullish: false }; } return { hasGap: false, type: '', desc: '', score: 0 }; }
+      function detectTriangle(histClosed) { if (histClosed.length < 20) return { hasTriangle: false, desc: '', score: 0 }; var highs = [],
+          lows = []; for (var i = histClosed.length - 20; i < histClosed.length; i++) { highs.push(histClosed[i].h);
+          lows.push(histClosed[i].l); } var firstMax = Math.max.apply(null, highs.slice(0, 10)); var secondMax = Math.max.apply(null, highs.slice(10, 20)); var firstMin = Math.min.apply(null, lows.slice(0, 10)); var secondMin = Math.min.apply(null, lows.slice(10, 20)); var highSlope = secondMax - firstMax; var lowSlope = secondMin - firstMin; if (highSlope < -2 && lowSlope > 2) { var width = (secondMax - secondMin) / ((firstMax + secondMax) / 2) * 100; if (width < 5) return { hasTriangle: true, desc: '对称三角收敛(' + width.toFixed(1) + '%)', score: 0, breakout: '待突破' }; } if (highSlope < -2 && Math.abs(lowSlope) < 2) return { hasTriangle: true, desc: '下降三角', score: -1, breakout: '偏空' }; if (Math.abs(highSlope) < 2 && lowSlope > 2) return { hasTriangle: true, desc: '上升三角', score: 1, breakout: '偏多' }; return { hasTriangle: false, desc: '', score: 0 }; }
+      function trendlinePosition(closes, atrVal) { if (closes.length < 40) return { position: '数据不足', desc: '', score: 0 }; var threshold = atrVal * 3; var recent = closes.slice(-20); var older = closes.slice(-40, -20); var recentHigh = Math.max.apply(null, recent); var olderHigh = Math.max.apply(null, older); var recentLow = Math.min.apply(null, recent); var olderLow = Math.min.apply(null, older); var now = closes[closes.length - 1]; if (recentHigh < olderHigh - threshold && recentLow < olderLow - threshold) { var range = olderHigh - recentLow; var posInRange = (now - recentLow) / (range || 1); if (posInRange < 0.3) return { position: '下降趋势底部', desc: '接近下降通道下轨', score: 3 }; if (posInRange > 0.7) return { position: '下降趋势顶部', desc: '接近下降通道上轨', score: -2 }; return { position: '下降趋势中部', desc: '', score: 0 }; } if (recentHigh > olderHigh + threshold && recentLow > olderLow + threshold) { var range = recentHigh - olderLow; var posInRange = (now - olderLow) / (range || 1); if (posInRange < 0.3) return { position: '上升趋势底部', desc: '接近上升通道下轨', score: 3 }; if (posInRange > 0.7) return { position: '上升趋势顶部', desc: '接近上升通道上轨', score: -1 }; return { position: '上升趋势中部', desc: '', score: 0 }; } return { position: '无明显通道', desc: '', score: 0 }; }
+      function collectAllPivots() { var all = []; var defs = [{ symbol: '国内金价', pId: 'pivotP', r1Id: 'pivotR1', r2Id: 'pivotR2', r3Id: 'pivotR3', s1Id: 'pivotS1', s2Id: 'pivotS2', s3Id: 'pivotS3' }, { symbol: 'XAUUSD', pId: 'xauP', r1Id: 'xauR1', r2Id: 'xauR2', r3Id: 'xauR3', s1Id: 'xauS1', s2Id: 'xauS2', s3Id: 'xauS3' }, { symbol: 'DXY', pId: 'dxyP', r1Id: 'dxyR1', r2Id: 'dxyR2', r3Id: 'dxyR3', s1Id: 'dxyS1', s2Id: 'dxyS2', s3Id: 'dxyS3' }, { symbol: 'USDCNH', pId: 'cnhP', r1Id: 'cnhR1', r2Id: 'cnhR2', r3Id: 'cnhR3', s1Id: 'cnhS1', s2Id: 'cnhS2', s3Id: 'cnhS3' }, { symbol: 'XAUBRT', pId: 'gorP', r1Id: 'gorR1', r2Id: 'gorR2', r3Id: 'gorR3', s1Id: 'gorS1', s2Id: 'gorS2', s3Id: 'gorS3' }]; for (var i = 0; i < defs.length; i++) { var d = defs[i]; var p = gv(d.pId),
+            r1 = gv(d.r1Id),
+            s1 = gv(d.s1Id); if (isNaN(p) || isNaN(r1) || isNaN(s1)) continue; var piv = { symbol: d.symbol, p: p, r1: r1, s1: s1 }; var r2 = gv(d.r2Id); if (!isNaN(r2)) piv.r2 = r2; var r3 = gv(d.r3Id); if (!isNaN(r3)) piv.r3 = r3; var s2 = gv(d.s2Id); if (!isNaN(s2)) piv.s2 = s2; var s3 = gv(d.s3Id); if (!isNaN(s3)) piv.s3 = s3;
+          all.push(piv); } return all; }
+      function multiPivotResonance() { var allPivots = collectAllPivots(); if (allPivots.length === 0) return { score: 0, reasons: [], bullCount: 0, bearCount: 0, activeCount: 0 }; var totalScore = 0,
+          reasons = [],
+          bullCount = 0,
+          bearCount = 0; var priceMap = { '国内金价': gv('nowPrice'), 'XAUUSD': gv('london'), 'DXY': gv('usdx'), 'USDCNH': gv('cny'), 'XAUBRT': gv('brent') }; for (var i = 0; i < allPivots.length; i++) { var piv = allPivots[i]; var price = priceMap[piv.symbol]; if (isNaN(price)) continue; var sig = singlePivotSignal(price, piv);
+          totalScore += sig.score; if (sig.score > 0) bullCount++; if (sig.score < 0) bearCount++; for (var j = 0; j < sig.reasons.length; j++) { reasons.push(piv.symbol + ':' + sig.reasons[j]); } } if (bullCount >= 3) { totalScore += 3;
+          reasons.push('多品种支撑共振+3'); } if (bearCount >= 3) { totalScore -= 3;
+          reasons.push('多品种阻力共振-3'); } return { score: totalScore, reasons: reasons, bullCount: bullCount, bearCount: bearCount, activeCount: allPivots.length }; }
+
+      function getSignal(histClosed, macroBullish, adxTh, techTh, lastDir, nowPrice, tO, tH, tL, gapInfo, triangleInfo, trendlineInfo, pivotResonance) { if (histClosed.length < 20) return { up: false, techScore: 0, reasons: [], adx: 0, bbWidth: 0, adxSlope: 0, plusDI: 0, minusDI: 0, ma20: 0, rsi: 50, bbPos: 0.5 }; var wc = [],
+          wv = []; for (var i = 0; i < histClosed.length; i++) { wc.push(histClosed[i].c);
+          wv.push(histClosed[i].vol); } var reasons = [],
+          techScore = 0; var ma20 = 0; for (var i = wc.length - 20; i < wc.length; i++) ma20 += wc[i];
+        ma20 /= Math.min(20, wc.length); var adxR = calcADX(histClosed.slice(-30), 14); if (adxR.adx < adxTh) return { up: false, techScore: 0, reasons: ['ADX<' + adxTh], adx: adxR.adx, bbWidth: 0, adxSlope: adxR.slope, plusDI: adxR.plusDI, minusDI: adxR.minusDI, ma20: ma20, rsi: 50, bbPos: 0.5 }; if (adxR.slope > 0 && adxR.plusDI > adxR.minusDI) { techScore += 2;
+          reasons.push('ADX升+DI强'); } var ma5 = 0; for (var i = wc.length - 5; i < wc.length; i++) ma5 += wc[i];
+        ma5 /= 5; if (ma5 > ma20) { techScore += 2;
+          reasons.push('MA金叉'); } var rsi = calcRSI(wc, 14); if (rsi > 30 && rsi < 65) { techScore += 2;
+          reasons.push('RSI' + rsi.toFixed(0)); } else if (rsi <= 30) { techScore += 3;
+          reasons.push('RSI超卖'); } var bb = calcBollinger(wc, 20, 2); if (bb.position < 0.3) { techScore += 2;
+          reasons.push('布林低位'); } var atrLocal = calcATR(histClosed.slice(-20), 14); var effectiveTechTh = techTh; if (bb.width < (atrLocal / (wc[wc.length - 1] || 1)) * 0.5) { effectiveTechTh = Math.max(2, effectiveTechTh - 1);
+          reasons.push('布林收窄降阈'); } var avgVol = 0; for (var i = wv.length - 20; i < wv.length; i++) avgVol += wv[i];
+        avgVol /= Math.min(20, wv.length); if (wv[wv.length - 1] > avgVol * 1.15 && wc[wc.length - 1] > wc[wc.length - 2]) { techScore += 2;
+          reasons.push('放量上涨'); } if (wv[wv.length - 1] < avgVol * 0.8 && Math.abs(wc[wc.length - 1] - ma20) / ma20 < 0.01 && wc[wc.length - 1] > ma20) { techScore += 1;
+          reasons.push('缩量回踩MA20'); } if (wc.length >= 4) { var l4 = [wc[wc.length - 4], wc[wc.length - 3], wc[wc.length - 2], wc[wc.length - 1]]; if (l4[0] < l4[1] && l4[1] < l4[2] && l4[2] < l4[3] && wc[wc.length - 1] > wc[wc.length - 2]) { techScore += 3;
+            reasons.push('三连阴后反转'); } } if (wc.length >= 20) { var rn = calcRSI(wc.slice(-10), 9),
+            rp = calcRSI(wc.slice(-20, -10), 9); if (wc[wc.length - 1] < wc[wc.length - 10] && rn > rp) { techScore += 2;
+            reasons.push('RSI底背离'); } } if (nowPrice && tO && tH && tL && tH > tL) { var intraDayPos = (nowPrice - tL) / (tH - tL); if (intraDayPos < 0.2 && nowPrice > tO) { techScore += 2;
+            reasons.push('深V反转'); } else if (intraDayPos < 0.3 && nowPrice > tO) { techScore += 1;
+            reasons.push('探底回升'); } } if (lastDir === 'long') { techScore += 1;
+          reasons.push('昨多交收'); } if (pivotResonance && pivotResonance.activeCount > 0) { techScore += pivotResonance.score; for (var i = 0; i < pivotResonance.reasons.length; i++) reasons.push(pivotResonance.reasons[i]); } if (gapInfo && gapInfo.hasGap) { techScore += gapInfo.score; if (gapInfo.score !== 0) reasons.push(gapInfo.type); } if (triangleInfo && triangleInfo.hasTriangle && triangleInfo.score !== 0) { techScore += triangleInfo.score;
+          reasons.push(triangleInfo.desc); } if (trendlineInfo && trendlineInfo.score !== 0) { techScore += trendlineInfo.score;
+          reasons.push(trendlineInfo.position); } var techOk = techScore >= effectiveTechTh; return { up: techOk && macroBullish, techScore: techScore, reasons: reasons, adx: adxR.adx, bbWidth: bb.width, adxSlope: adxR.slope, plusDI: adxR.plusDI, minusDI: adxR.minusDI, ma20: ma20, rsi: rsi, bbPos: bb.position }; }
+
+      function dynamicBacktestWindow(dataLen) { if (dataLen >= 300) return { lb: Math.floor(dataLen * 0.6), mw: 30, segments: 4 }; if (dataLen >= 200) return { lb: Math.floor(dataLen * 0.5), mw: 30, segments: 3 }; if (dataLen >= 100) return { lb: Math.floor(dataLen * 0.4), mw: 25, segments: 2 }; return { lb: Math.floor(dataLen * 0.35), mw: 20, segments: 1 }; }
+      function quickBacktest(data, lb, fd, feeRate, adxTh, techTh) { var closes = [],
+          opens = []; for (var i = 0; i < data.length; i++) { closes.push(data[i].c);
+          opens.push(data[i].o); } var mw = Math.max(lb, 15); var total = 0,
+          hits = 0; for (var i = mw; i < closes.length - fd - 1; i++) { var sig = getSignal(data.slice(0, i), closes[Math.max(0, i - 20)] > closes[Math.max(0, i - 40)], adxTh, techTh, data[Math.max(0, i - 1)].dir, closes[i]); var entry = opens[i + 1]; var ret = (closes[Math.min(i + 1 + fd, closes.length - 1)] * (1 - feeRate / 100) - entry) / entry; if (sig.up) { total++; if (ret > 0) hits++; } } return { hits: hits, total: total, wr: total > 0 ? hits / total : 0, score: total > 0 ? (hits / total) * Math.min(total, 50) : 0 }; }
+      function autoOptimize(data, lb, fd, feeRate) { var best = { adx: 20, tech: 3, score: 0, wr: 0, total: 0 }; var results = []; for (var adx = 15; adx <= 30; adx++) { for (var tech = 2; tech <= 6; tech++) { var bt = quickBacktest(data, lb, fd, feeRate, adx, tech); results.push({ adx: adx, tech: tech, wr: bt.wr, total: bt.total, score: bt.score }); if (bt.score > best.score || (bt.score === best.score && bt.wr > best.wr)) { best = { adx: adx, tech: tech, score: bt.score, wr: bt.wr, total: bt.total }; } } }
+        results.sort(function(a, b) { return b.score - a.score; }); return { best: best, top5: results.slice(0, 5) }; }
+      function multiSegmentBacktest(data, fd, feeRate, adxTh, techTh) { var win = dynamicBacktestWindow(data.length); if (win.segments < 2) return null; var segSize = Math.floor(data.length / win.segments); var segResults = []; for (var s = 0; s < win.segments; s++) { var start = s * segSize; var end = Math.min((s + 1) * segSize, data.length); var segData = data.slice(start, end); if (segData.length < 30) continue; var bt = quickBacktest(segData, Math.floor(segData.length * 0.3), fd, feeRate, adxTh, techTh);
+          segResults.push({ seg: s + 1, wr: bt.wr, total: bt.total, startDate: segData[0].date, endDate: segData[segData.length - 1].date }); } return segResults; }
+      function atrPercentile(data) { var atrs = []; for (var i = 30; i < data.length; i++) { var slice = data.slice(Math.max(0, i - 20), i + 1); var atrVal = calcATR(slice, 14); var price = data[i].c;
+          atrs.push(atrVal / price); }
+        atrs.sort(function(a, b) { return a - b; }); var currentSlice = data.slice(-20); var currentAtr = calcATR(currentSlice, 14) / (data[data.length - 1].c || 1); var rank = 0; for (var j = 0; j < atrs.length; j++) { if (currentAtr > atrs[j]) rank++; } return { pct: atrs.length > 0 ? rank / atrs.length : 0.5, current: currentAtr, median: atrs.length > 0 ? atrs[Math.floor(atrs.length / 2)] : currentAtr, all: atrs }; }
+      function fullBacktest(data, lb, fd, feeRate, adxTh, techTh) { var closes = [],
+          opens = [],
+          highs = [],
+          lows = []; for (var i = 0; i < data.length; i++) { closes.push(data[i].c);
+          opens.push(data[i].o);
+          highs.push(data[i].h);
+          lows.push(data[i].l); } var win = dynamicBacktestWindow(data.length); var mw = win.mw; var totalBars = closes.length - fd - 1 - mw; if (totalBars <= 0) return { stratEq: [1], randEq: [1], wr: 0.5, total: 0, hits: 0, recentWR: 0.5, decayCurve: [], multiSeg: null }; var stratEq = [1],
+          randEq = [1],
+          hits = 0,
+          total = 0,
+          sc = 0; for (var i = mw; i < closes.length - fd - 1; i++) { var histSlice = data.slice(0, i); var gapI = detectGap(histSlice); var triI = detectTriangle(histSlice); var atrI = calcATR(data.slice(Math.max(0, i - 20), i + 1), 14); var closesI = []; for (var k = 0; k <= i; k++) closesI.push(closes[k]); var trendI = trendlinePosition(closesI, atrI); if (getSignal(histSlice, closes[Math.max(0, i - 20)] > closes[Math.max(0, i - 40)], adxTh, techTh, data[Math.max(0, i - 1)].dir, closes[i], undefined, undefined, undefined, undefined, gapI, triI, trendI).up) sc++; } var freq = sc / Math.max(1, totalBars),
+          trades = []; var holdResults = {}; for (var d = 1; d <= 14; d++) holdResults[d] = { hits: 0, total: 0 }; for (var i = mw; i < closes.length - fd - 1; i++) { var histSlice = data.slice(0, i); var gapI = detectGap(histSlice); var triI = detectTriangle(histSlice); var atrI = calcATR(data.slice(Math.max(0, i - 20), i + 1), 14); var closesI = []; for (var k = 0; k <= i; k++) closesI.push(closes[k]); var trendI = trendlinePosition(closesI, atrI); var sig = getSignal(histSlice, closes[Math.max(0, i - 20)] > closes[Math.max(0, i - 40)], adxTh, techTh, data[Math.max(0, i - 1)].dir, closes[i], undefined, undefined, undefined, undefined, gapI, triI, trendI); var atrPctLocal = atrI / (closes[i] || 1); var strongTrendLocal = sig.adx >= 25 && sig.plusDI > sig.minusDI && closes[i] > sig.ma20; var buyPriceLocal; if (strongTrendLocal) { buyPriceLocal = closes[i] * (1 + atrPctLocal * 0.4); if (buyPriceLocal < closes[i]) buyPriceLocal = closes[i]; if (buyPriceLocal > closes[i] * 1.003) buyPriceLocal = closes[i] * 1.003; } else { buyPriceLocal = closes[i] * (1 - atrPctLocal); if (buyPriceLocal > closes[i] * 0.998) buyPriceLocal = closes[i] * 0.998; if (buyPriceLocal < closes[i] * 0.97) buyPriceLocal = closes[i] * 0.97; } var entry = opens[i + 1]; var ret = (closes[Math.min(i + 1 + fd, closes.length - 1)] * (1 - feeRate / 100) - entry) / entry; if (sig.up) { total++; if (!strongTrendLocal) { var dayLow = Math.min(lows[i + 1], lows[Math.min(i + 2, lows.length - 1)] || lows[i + 1]); if (dayLow <= buyPriceLocal && buyPriceLocal <= highs[i + 1]) { entry = buyPriceLocal;
+                ret = (closes[Math.min(i + 1 + fd, closes.length - 1)] * (1 - feeRate / 100) - entry) / entry; } }
+            stratEq.push(stratEq[stratEq.length - 1] * (1 + ret)); if (ret > 0) hits++;
+            trades.push({ win: ret > 0 }); for (var d = 1; d <= 14; d++) { if (i + 1 + d < closes.length) { var exitD = closes[i + 1 + d] * (1 - feeRate / 100);
+                holdResults[d].total++; if (exitD > entry * (1 + feeRate / 100)) holdResults[d].hits++; } } } else { stratEq.push(stratEq[stratEq.length - 1]); } var randSeed = i * 31 + (data[i] && data[i].date ? data[i].date.replace(/-/g, '') * 1 : i);
+          randEq.push(randEq[randEq.length - 1] * (1 + (seededRandom(randSeed) < freq ? ret : 0))); } var rw = 0.5; if (trades.length >= 20) { var w = 0; for (var i = trades.length - 20; i < trades.length; i++) if (trades[i].win) w++;
+          rw = w / 20; } var decayCurve = []; for (var d = 1; d <= 14; d++) { decayCurve.push({ day: d, wr: holdResults[d].total > 0 ? holdResults[d].hits / holdResults[d].total : 0.5, total: holdResults[d].total }); } var multiSeg = multiSegmentBacktest(data, fd, feeRate, adxTh, techTh); return { stratEq: stratEq, randEq: randEq, wr: total > 0 ? hits / total : 0.5, total: total, hits: hits, recentWR: rw, decayCurve: decayCurve, multiSeg: multiSeg }; }
+      function autoRiskLevel(bt, regime, hasPosition, nowPrice, holdCost, atrPctInfo, multiSeg, pivotResonance) { var score = 0,
+          reasons = []; if (bt.total >= 5) { if (bt.wr >= 0.60) { score += 3;
+            reasons.push('回测胜率' + (bt.wr * 100).toFixed(0) + '% +3'); } else if (bt.wr >= 0.50) { score += 1;
+            reasons.push('回测胜率' + (bt.wr * 100).toFixed(0) + '% +1'); } else if (bt.wr >= 0.40) { score += 0;
+            reasons.push('回测胜率' + (bt.wr * 100).toFixed(0) + '% 0'); } else { score -= 3;
+            reasons.push('回测胜率' + (bt.wr * 100).toFixed(0) + '% -3'); } } else { reasons.push('回测不足5次 0'); } if (bt.total >= 20) { if (bt.recentWR >= 0.50) { score += 2;
+            reasons.push('滚动胜率' + (bt.recentWR * 100).toFixed(0) + '% +2'); } else if (bt.recentWR >= 0.40) { score += 1;
+            reasons.push('滚动胜率' + (bt.recentWR * 100).toFixed(0) + '% +1'); } else if (bt.recentWR >= 0.30) { score += 0;
+            reasons.push('滚动胜率' + (bt.recentWR * 100).toFixed(0) + '% 0'); } else { score -= 2;
+            reasons.push('滚动胜率' + (bt.recentWR * 100).toFixed(0) + '% -2'); } } else { reasons.push('滚动不足20次 0'); } if (regime.indexOf('牛市') >= 0) { score += 2;
+          reasons.push('牛市 +2'); } else if (regime.indexOf('熊市') >= 0) { score -= 2;
+          reasons.push('熊市 -2'); } else { reasons.push('震荡市 0'); } if (hasPosition) { var pnlPct = (nowPrice - holdCost) / holdCost * 100; if (pnlPct > 0) { score += 1;
+            reasons.push('持仓浮盈 +1'); } else if (pnlPct > -3) { score += 0;
+            reasons.push('持仓浅套 0'); } else if (pnlPct > -8) { score -= 1;
+            reasons.push('持仓中套 -1'); } else { score -= 2;
+            reasons.push('持仓深套 -2'); } } else { reasons.push('无持仓 0'); } if (atrPctInfo && atrPctInfo.pct > 0.8) { score -= 1;
+          reasons.push('ATR高波动(' + (atrPctInfo.pct * 100).toFixed(0) + '%) -1'); } else if (atrPctInfo && atrPctInfo.pct < 0.2) { score += 1;
+          reasons.push('ATR低波动(' + (atrPctInfo.pct * 100).toFixed(0) + '%) +1'); } else if (atrPctInfo) { reasons.push('ATR正常(' + (atrPctInfo.pct * 100).toFixed(0) + '%) 0'); } if (multiSeg && multiSeg.length >= 2) { var firstWR = multiSeg[0].wr; var lastWR = multiSeg[multiSeg.length - 1].wr; var globalWR = bt.wr; if (lastWR >= firstWR && lastWR >= globalWR) { score += 2;
+            reasons.push('多周期改善 +2'); } else if (lastWR >= globalWR) { score += 1;
+            reasons.push('多周期稳定 +1'); } else if (lastWR < firstWR && lastWR < 0.40) { score -= 2;
+            reasons.push('多周期退化 -2'); } else if (lastWR < firstWR) { score -= 1;
+            reasons.push('多周期转弱 -1'); } } if (pivotResonance && pivotResonance.activeCount > 0) { if (pivotResonance.bullCount >= 3) { score += 2;
+            reasons.push('多品种支撑共振 +2'); } else if (pivotResonance.bearCount >= 3) { score -= 2;
+            reasons.push('多品种阻力共振 -2'); } else if (pivotResonance.bullCount >= 2) { score += 1;
+            reasons.push('部分支撑共振 +1'); } else if (pivotResonance.bearCount >= 2) { score -= 1;
+            reasons.push('部分阻力共振 -1'); } else { reasons.push('轴心点无明显共振 0'); } } var level; if (score >= 5) level = 'aggressive'; else if (score >= 1) level = 'neutral'; else level = 'conservative'; return { level: level, score: score, reasons: reasons }; }
+
+      function drawDecayChart(decayCurve, forecastDays) { var cv = $('decayChart'),
+          ctx = cv.getContext('2d'),
+          ct = cv.parentElement,
+          w = ct.offsetWidth,
+          h = ct.offsetHeight; if (!decayCurve || decayCurve.length < 2) { ctx.clearRect(0, 0, w, h); return; }
+        cv.width = w * 2;
+        cv.height = h * 2;
+        cv.style.width = w + 'px';
+        cv.style.height = h + 'px';
+        ctx.scale(2, 2); var pad = { t: 6, r: 10, b: 14, l: 28 },
+          pw = w - pad.l - pad.r,
+          ph = h - pad.t - pad.b; var nPts = Math.min(decayCurve.length, forecastDays + 5); var mx = -Infinity,
+          mn = Infinity; for (var dIdx = 0; dIdx < nPts; dIdx++) { var v = decayCurve[dIdx].wr; if (v > mx) mx = v; if (v < mn) mn = v; } if (mx === mn) { mx = mn + 0.05;
+          mn -= 0.05; } var rg = mx - mn; var sy = function(v) { return pad.t + ph - ((v - mn) / rg) * ph; }; var sx = function(i) { return pad.l + (i / (nPts - 1)) * pw; };
+        ctx.clearRect(0, 0, w, h);
+        ctx.strokeStyle = 'rgba(128,128,128,0.15)';
+        ctx.lineWidth = 0.3; for (var gridI = 0; gridI < 4; gridI++) { var y = pad.t + (ph / 3) * gridI;
+          ctx.beginPath();
+          ctx.moveTo(pad.l, y);
+          ctx.lineTo(w - pad.r, y);
+          ctx.stroke(); }
+        ctx.strokeStyle = 'rgba(128,128,128,0.5)';
+        ctx.lineWidth = 0.4;
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(pad.l, sy(0.5));
+        ctx.lineTo(w - pad.r, sy(0.5));
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.strokeStyle = '#d94040';
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(sx(0), sy(decayCurve[0].wr)); for (var dIdx2 = 1; dIdx2 < nPts; dIdx2++) ctx.lineTo(sx(dIdx2), sy(decayCurve[dIdx2].wr));
+        ctx.stroke();
+        var bestDay = 0,
+          bestWR = 0; for (var dIdx3 = 0; dIdx3 < nPts; dIdx3++) { if (decayCurve[dIdx3].wr > bestWR) { bestWR = decayCurve[dIdx3].wr;
+            bestDay = dIdx3; } }
+        if (bestWR > 0) { ctx.fillStyle = '#d94040';
+          ctx.beginPath();
+          ctx.arc(sx(bestDay), sy(bestWR), 3, 0, Math.PI * 2);
+          ctx.fill(); }
+        var summary = ''; if (bestWR > 0 && decayCurve[nPts - 1].wr < bestWR - 0.05) { summary = '最佳持有' + (bestDay + 1) + '天(胜率' + (bestWR * 100).toFixed(0) + '%)，' + nPts + '天降至' + (decayCurve[nPts - 1].wr * 100).toFixed(0) + '%'; } else if (bestWR > 0.5) { summary = '胜率稳定，' + (bestDay + 1) + '天最高' + (bestWR * 100).toFixed(0) + '%'; } else { summary = '胜率整体偏低，建议短线操作'; }
+        $('decaySummary').textContent = '📉 ' + summary; }
+
+      function drawChart(canvasId, data, isEquity, tO, tH, tL, tNow, isLarge) { var cv = $(canvasId),
+          ctx = cv.getContext('2d'),
+          ct = cv.parentElement,
+          w = ct.offsetWidth,
+          h = ct.offsetHeight; if (data.length < 2) { ctx.clearRect(0, 0, w, h); return; }
+        cv.width = w * 2;
+        cv.height = h * 2;
+        cv.style.width = w + 'px';
+        cv.style.height = h + 'px';
+        ctx.scale(2, 2); var pad = { t: 14, r: 12, b: 20, l: 38 },
+          pw = w - pad.l - pad.r,
+          ph = h - pad.t - pad.b; if (isEquity) { var stratEq = data[0],
+            randEq = data[1],
+            nEq = stratEq.length; var mx = -Infinity,
+            mn = Infinity; for (var eqI = 0; eqI < nEq; eqI++) { if (stratEq[eqI] > mx) mx = stratEq[eqI]; if (stratEq[eqI] < mn) mn = stratEq[eqI]; if (randEq[eqI] > mx) mx = randEq[eqI]; if (randEq[eqI] < mn) mn = randEq[eqI]; } if (mx === mn) { mx = mn + 0.1;
+            mn -= 0.1; } var rg = mx - mn; var syEq = function(v) { return pad.t + ph - ((v - mn) / rg) * ph; }; var sxEq = function(i) { return pad.l + (i / (nEq - 1)) * pw; };
+          ctx.clearRect(0, 0, w, h);
+          ctx.strokeStyle = 'rgba(128,128,128,0.12)';
+          ctx.lineWidth = 0.3; for (var gridEq = 0; gridEq < 5; gridEq++) { var y = pad.t + (ph / 4) * gridEq;
+            ctx.beginPath();
+            ctx.moveTo(pad.l, y);
+            ctx.lineTo(w - pad.r, y);
+            ctx.stroke(); }
+          ctx.strokeStyle = 'rgba(128,128,128,0.4)';
+          ctx.lineWidth = 0.5;
+          ctx.setLineDash([3, 3]);
+          ctx.beginPath();
+          ctx.moveTo(pad.l, syEq(1));
+          ctx.lineTo(w - pad.r, syEq(1));
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.strokeStyle = '#999';
+          ctx.lineWidth = 1;
+          ctx.setLineDash([5, 3]);
+          ctx.beginPath();
+          ctx.moveTo(sxEq(0), syEq(randEq[0])); for (var eqJ = 1; eqJ < nEq; eqJ++) ctx.lineTo(sxEq(eqJ), syEq(randEq[eqJ]));
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.strokeStyle = '#d94040';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(sxEq(0), syEq(stratEq[0])); for (var eqK = 1; eqK < nEq; eqK++) ctx.lineTo(sxEq(eqK), syEq(stratEq[eqK]));
+          ctx.stroke(); } else { var showCount = isLarge ? 200 : 80; var plotData = data.slice(-showCount); var allPlot = plotData.concat([{ o: tO, h: tH, l: tL, c: tNow }]); var mx = -Infinity,
+            mn = Infinity; for (var klI = 0; klI < allPlot.length; klI++) { if (allPlot[klI].h > mx) mx = allPlot[klI].h; if (allPlot[klI].l < mn) mn = allPlot[klI].l; } var rg = mx - mn || 1,
+            nKL = allPlot.length,
+            gp = pw / nKL,
+            bw = Math.max(1.2, gp * 0.65); var syKL = function(v) { return pad.t + ph - ((v - mn) / rg) * ph; };
+          ctx.clearRect(0, 0, w, h);
+          ctx.strokeStyle = 'rgba(128,128,128,0.1)';
+          ctx.lineWidth = 0.3; for (var gridKL = 0; gridKL < 5; gridKL++) { var y = pad.t + (ph / 4) * gridKL;
+            ctx.beginPath();
+            ctx.moveTo(pad.l, y);
+            ctx.lineTo(w - pad.r, y);
+            ctx.stroke(); } if (allPlot.length >= 20) { ctx.strokeStyle = '#e0a030';
+            ctx.lineWidth = 0.8;
+            ctx.setLineDash([2, 2]);
+            ctx.beginPath(); for (var maI = 19; maI < allPlot.length; maI++) { var ma = 0; for (var maJ = maI - 19; maJ <= maI; maJ++) ma += allPlot[maJ].c;
+              ma /= 20; var x = pad.l + gp * maI + gp / 2; if (maI === 19) ctx.moveTo(x, syKL(ma));
+              else ctx.lineTo(x, syKL(ma)); }
+            ctx.stroke();
+            ctx.setLineDash([]); } for (var klJ = 0; klJ < allPlot.length; klJ++) { var d = allPlot[klJ],
+              up = d.c >= d.o,
+              cl = up ? '#e35050' : '#34a853',
+              last = klJ === allPlot.length - 1;
+            ctx.strokeStyle = cl;
+            ctx.lineWidth = last ? 0.9 : 0.45;
+            ctx.setLineDash(last ? [3, 2] : []);
+            ctx.beginPath(); var x = pad.l + gp * klJ + gp / 2;
+            ctx.moveTo(x, syKL(d.h));
+            ctx.lineTo(x, syKL(d.l));
+            ctx.stroke();
+            ctx.setLineDash([]); var top = syKL(Math.max(d.o, d.c)),
+              btm = syKL(Math.min(d.o, d.c));
+            ctx.fillStyle = cl;
+            ctx.fillRect(x - bw / 2, top, bw, Math.max(0.6, btm - top)); } } }
+      function techBarHtml(sig) { var bars = [{ name: 'RSI', val: sig.rsi || 50, min: 0, max: 100, low: 30, high: 70, note: (sig.rsi <= 30 ? '超卖偏多' : sig.rsi >= 70 ? '超买偏空' : '中性') }, { name: 'ADX', val: Math.min(100, (sig.adx || 20) * 2), min: 0, max: 100, low: 30, high: 60, note: (sig.adx < 20 ? '震荡' : sig.adx >= 25 ? '强趋势' : '趋势形成中') }, { name: '布林', val: (sig.bbPos || 0.5) * 100, min: 0, max: 100, low: 30, high: 70, note: (sig.bbPos < 0.3 ? '低位偏多' : sig.bbPos > 0.7 ? '高位偏空' : '中位') }, { name: 'DI差', val: Math.min(100, Math.max(0, 50 + (sig.plusDI - sig.minusDI || 0))), min: 0, max: 100, low: 40, high: 60, note: ((sig.plusDI || 0) > (sig.minusDI || 0) ? '多头占优' : '空头占优') }]; var h = '<div class="card" style="margin-top:4px;"><div class="card-title">📊 技术指标柱状图</div>'; for (var i = 0; i < bars.length; i++) { var b = bars[i]; var pos = Math.max(2, Math.min(98, (b.val - b.min) / (b.max - b.min) * 100));
+        h += '<div class="tech-bar-row"><span class="tech-bar-label">' + b.name + '</span><div class="tech-bar-track"><div class="tech-bar-fill" style="left:' + pos + '%;"></div></div><span class="tech-bar-val">' + b.val.toFixed(0) + '</span><span style="font-size:0.4rem;color:var(--text-muted);">' + b.note + '</span></div>'; } h += '</div>'; return h; }
+
+      // ===== 按钮事件 =====
+      $('pasteBtn').addEventListener('click', function() { var text = $('pasteArea').value.trim(); if (!text) { toast('请先粘贴数据', 'err'); return; }
+        histData = parseData(text); if (histData.length < 30) { toast('至少需要30条', 'err');
+          histData = []; return; }
+        $('dataSummary').textContent = histData.length + '条 ' + histData[0].date + ' ~ ' + histData[histData.length - 1].date;
+        if (histData.length >= 2) { $('domPrev').value = histData[histData.length - 2].c.toFixed(2); }
+        toast('解析成功', 'ok'); });
+      $('clearBtn').addEventListener('click', function() { ['pasteArea', 'dataSummary', 'outputArea', 'optimizeResult', 'decaySummary'].forEach(function(id) { if ($(id) && $(id).value !== undefined) $(id).value = '';
+          else if ($(id)) $(id).textContent = ''; });
+        $('modelPanel').innerHTML = '<details class="model-group" open><summary>📡 信号分析</summary></details><details class="model-group" open><summary>📦 持仓与补仓</summary></details><details class="model-group" open><summary>📊 回测统计</summary></details>';
+        histData = []; var allIds = ['todayO', 'todayH', 'todayL', 'nowPrice', 'fundFlow', 'targetPct', 'grams', 'feeRate', 'availFunds', 'usdx', 'cny', 'london', 'brent', 'us10y', 'vix', 'dxyOpen', 'dxyPrev', 'dxyHigh', 'dxyLow', 'cnhOpen', 'cnhPrev', 'cnhHigh', 'cnhLow', 'xauOpen', 'xauPrev', 'xauHigh', 'xauLow', 'gorOpen', 'gorPrev', 'gorHigh', 'gorLow', 'domPrev', 'pivotP', 'pivotR1', 'pivotR2', 'pivotR3', 'pivotS1', 'pivotS2', 'pivotS3', 'xauP', 'xauR1', 'xauR2', 'xauR3', 'xauS1', 'xauS2', 'xauS3', 'dxyP', 'dxyR1', 'dxyR2', 'dxyR3', 'dxyS1', 'dxyS2', 'dxyS3', 'cnhP', 'cnhR1', 'cnhR2', 'cnhR3', 'cnhS1', 'cnhS2', 'cnhS3', 'gorP', 'gorR1', 'gorR2', 'gorR3', 'gorS1', 'gorS2', 'gorS3'];
+        for (var i = 0; i < allIds.length; i++) { if ($(allIds[i])) $(allIds[i]).value = ''; }
+        $('posTbody').innerHTML = '<tr data-slot="0"><td><select class="slot-type" style="width:100%;padding:2px;font-size:0.48rem;background:var(--input-bg);border:1px solid var(--border);border-radius:3px;color:var(--text);"><option value="long">长期</option><option value="add">补仓</option><option value="scalp">超短</option></select></td><td><input type="number" step="0.01" class="slot-grams" style="width:100%;padding:2px 3px;font-size:0.48rem;background:var(--input-bg);border:1px solid var(--border);border-radius:3px;color:var(--text);text-align:center;"></td><td><input type="number" step="0.01" class="slot-cost" style="width:100%;padding:2px 3px;font-size:0.48rem;background:var(--input-bg);border:1px solid var(--border);border-radius:3px;color:var(--text);text-align:center;"></td><td class="slot-pnl" style="font-size:0.43rem;color:var(--text-muted);">-</td><td></td></tr>';
+        slotCounter = 1;
+        $('posSummary').textContent = '';
+        $('feeRate').value = '0.4';
+        $('adxThreshold').value = '20';
+        $('adxThVal').textContent = '20';
+        $('techThreshold').value = '3';
+        $('techThVal').textContent = '3';
+        document.querySelectorAll('.pill').forEach(function(pp) { pp.classList.remove('active');
+          pp.classList.remove('auto-active'); });
+        document.querySelector('.pill[data-risk="auto"]').classList.add('auto-active');
+        riskLevel = 'auto';
+        toast('已清空', 'ok'); });
+      $('optimizeBtn').addEventListener('click', function() { if (!histData || histData.length < 30) { toast('请先粘贴至少30条数据', 'err'); return; } var feeRate = gv('feeRate'); if (isNaN(feeRate)) feeRate = 0.4; var forecastDays = parseInt($('forecastDays').value) || 5; var win = dynamicBacktestWindow(histData.length); var opt = autoOptimize(histData, win.lb, forecastDays, feeRate); $('adxThreshold').value = opt.best.adx;
+        $('adxThVal').textContent = opt.best.adx;
+        $('techThreshold').value = opt.best.tech;
+        $('techThVal').textContent = opt.best.tech; var topHtml = '<b>🔍 寻优完成</b> · 推荐ADX=<b>' + opt.best.adx + '</b> 技术分=<b>' + opt.best.tech + '</b>（胜率' + (opt.best.wr * 100).toFixed(0) + '%/' + opt.best.total + '次）'; if (win.segments >= 3) topHtml += ' · 数据' + histData.length + '条深度分析'; topHtml += '<br>'; topHtml += '<table class="optimize-table"><thead><tr><th>ADX</th><th>技分</th><th>胜率</th><th>交易</th><th>评分</th></tr></thead><tbody>'; for (var i = 0; i < opt.top5.length; i++) { var r = opt.top5[i]; var isBest = r.adx === opt.best.adx && r.tech === opt.best.tech;
+          topHtml += '<tr class="' + (isBest ? 'best' : '') + '"><td>' + r.adx + '</td><td>' + r.tech + '</td><td>' + (r.wr * 100).toFixed(0) + '%</td><td>' + r.total + '</td><td>' + r.score.toFixed(1) + '</td></tr>'; }
+        topHtml += '</tbody></table>';
+        $('optimizeResult').innerHTML = topHtml;
+        toast('已自动设置最优阈值：ADX=' + opt.best.adx + ' 技术分=' + opt.best.tech, 'ok'); });
+
+      // ===== 核心：运行分析 =====
+      $('runBtn').addEventListener('click', function() { var out = $('outputArea'),
+          mp = $('modelPanel'); if (!histData || histData.length < 30) { out.innerHTML = '<div style="color:#d94040;padding:10px;">❌ 请先粘贴至少30条数据</div>';
+          mp.innerHTML = '<details class="model-group" open><summary>📡 信号分析</summary></details><details class="model-group" open><summary>📦 持仓与补仓</summary></details><details class="model-group" open><summary>📊 回测统计</summary></details>'; return; } var vals = ['usdx', 'cny', 'london', 'brent', 'us10y', 'vix', 'nowPrice', 'fundFlow', 'targetPct', 'grams', 'feeRate', 'todayO', 'todayH', 'todayL']; for (var i = 0; i < vals.length; i++) { if (isNaN(gv(vals[i]))) { out.innerHTML = '<div style="color:#d94040;padding:10px;">❌ 请完整填写所有参数</div>';
+            mp.innerHTML = '<details class="model-group" open><summary>📡 信号分析</summary></details><details class="model-group" open><summary>📦 持仓与补仓</summary></details><details class="model-group" open><summary>📊 回测统计</summary></details>'; return; } } var usdx = gv('usdx'),
+          cny = gv('cny'),
+          london = gv('london'),
+          goldOilRatio = gv('brent'),
+          us10y = gv('us10y'),
+          vix = gv('vix');
+        var nowPrice = gv('nowPrice'),
+          fundFlow = gv('fundFlow'),
+          targetPct = gv('targetPct'),
+          grams = gv('grams'),
+          feeRate = gv('feeRate'); var tO = gv('todayO'),
+          tHi = gv('todayH'),
+          tLi = gv('todayL'); var adxTh = parseInt($('adxThreshold').value),
+          techTh = parseInt($('techThreshold').value); var forecastDays = parseInt($('forecastDays').value) || 5; var tH = Math.max(tHi, nowPrice),
+          tL = Math.min(tLi, nowPrice);
+        var flowBias = fundFlow > 10 ? 1 : fundFlow > 5 ? 0.5 : fundFlow < -10 ? -1 : fundFlow < -5 ? -0.5 : 0;
+        var macroScore = (100 - usdx) * 0.5 + (cny - 7) * 8 + (4.5 - us10y) * 4 + (vix > 20 ? 3 : 0) + flowBias; var macroBullish = macroScore > -5;
+        if (goldOilRatio > 28) macroBullish = true;
+        if (goldOilRatio < 16) macroBullish = false;
+        var atr = calcATR(histData, 14); if (atr < 0.5) atr = (tH - tL) || 1; var atrPct = atr / nowPrice; var lastDir = histData[histData.length - 1].dir; var histClosed = histData.slice(0, histData.length - 1); var pivotResonance = multiPivotResonance(); var intraRes = intradayResonance(); var gapInfo = detectGap(histClosed); var triangleInfo = detectTriangle(histClosed); var closes = []; for (var i = 0; i < histData.length; i++) closes.push(histData[i].c); var trendlineInfo = trendlinePosition(closes, atr); var sig = getSignal(histClosed, macroBullish, adxTh, techTh, lastDir, nowPrice, tO, tH, tL, gapInfo, triangleInfo, trendlineInfo, pivotResonance); var pattern = identifyPattern(histClosed); var regime = marketRegime(closes); var win = dynamicBacktestWindow(histData.length); var bt = fullBacktest(histData, win.lb, forecastDays, feeRate, adxTh, techTh);
+        drawChart('klineChart', histData, false, tO, tH, tL, nowPrice, true);
+        drawChart('equityChart', [bt.stratEq, bt.randEq], true, tO, tH, tL, nowPrice, false);
+        drawDecayChart(bt.decayCurve, forecastDays); var atrPctInfo = atrPercentile(histData); var baseWr = bt.total >= 20 ? bt.wr : bt.wr * 0.8 + 0.5 * 0.2; var bayesWr = bayes(baseWr, tO, nowPrice, tH, tL); var rollingFail = bt.recentWR < 0.35 && bt.total >= 20;
+        var positions = collectPositions();
+        var hasPosition = positions.length > 0;
+        var totalHoldGrams = 0,
+          totalHoldValue = 0,
+          addCount = 0,
+          scalpCount = 0; for (var i = 0; i < positions.length; i++) { var p = positions[i];
+          totalHoldGrams += p.grams;
+          totalHoldValue += p.grams * p.cost; if (p.type === 'add') addCount++; if (p.type === 'scalp') scalpCount++; }
+        var holdCost = totalHoldGrams > 0 ? totalHoldValue / totalHoldGrams : 0;
+        var availFunds = gv('availFunds'); if (isNaN(availFunds)) availFunds = 0;
+        var autoRL = autoRiskLevel(bt, regime.regime, hasPosition, nowPrice, holdCost, atrPctInfo, bt.multiSeg, pivotResonance);
+        var effectiveRisk = riskLevel === 'auto' ? autoRL.level : riskLevel;
+        var baseTh = effectiveRisk === 'conservative' ? 58 : effectiveRisk === 'aggressive' ? 40 : 48;
+        var canScalp = sig.up && !rollingFail;
+        var canAdd = hasPosition && nowPrice < holdCost && sig.up && Math.round(bayesWr * 100) >= baseTh && !rollingFail;
+        var canTrade = sig.up && Math.round(bayesWr * 100) >= baseTh && !rollingFail;
+        var strongTrend = sig.adx >= 25 && sig.plusDI > sig.minusDI && nowPrice > sig.ma20;
+        var trendMode = strongTrend ? '追涨' : '等回调';
+        var scalpCoef = 2;
+        if (intraRes.hasData) { if (intraRes.score >= 2) scalpCoef = 2.5; else if (intraRes.score <= -1) scalpCoef = 1.5; }
+        var coef = 1.5 - (bayesWr * 1.5);
+        coef = Math.max(0.3, Math.min(1.8, coef));
+        var buyPrice; if (strongTrend && canScalp) { buyPrice = nowPrice * (1 + atrPct * coef * 0.4); if (buyPrice < nowPrice) buyPrice = nowPrice; if (buyPrice > nowPrice * 1.003) buyPrice = nowPrice * 1.003; } else { buyPrice = nowPrice * (1 - atrPct * coef); if (buyPrice > nowPrice * 0.998) buyPrice = nowPrice * 0.998; if (buyPrice < nowPrice * 0.97) buyPrice = nowPrice * 0.97; } var am = effectiveRisk === 'conservative' ? 2.5 : effectiveRisk === 'aggressive' ? 1.2 : 1.8; var stopDist = Math.max(0.005, atrPct * am); var sl = buyPrice * (1 - stopDist); var tp1 = buyPrice * (1 + atrPct * scalpCoef) * (1 - feeRate / 100); var tp2 = buyPrice * (1 + atrPct * scalpCoef * 1.6) * (1 - feeRate / 100); var cost = buyPrice * grams; var adj = Math.max(0.3, targetPct + (bayesWr > 0.5 ? -0.01 : 0.02)); var licai = cost * (Math.pow(1 + 0.03 / 365, 30) - 1);
+
+        var positionInfo = null; var trapInfo = null; var mergeAdvice = null; var scalpAdvices = [];
+        var getAddStatusLabel = function(nowPrc, holdCst, canAddFlag, rollingFailFlag, sigUpFlag) { if (canAddFlag) return { label: '可补', color: '#d94040' }; if (nowPrc < holdCst) { if (rollingFailFlag) return { label: '策略失效', color: '#c8882a' }; if (!sigUpFlag) return { label: '信号不足', color: '#c8882a' }; return { label: '胜率不足', color: '#c8882a' }; } return { label: '盈利', color: '#2a9d4a' }; };
+        if (hasPosition) { var positionValue = totalHoldGrams * nowPrice; var positionPnLPct = totalHoldGrams > 0 ? ((nowPrice - holdCost) / holdCost) * 100 : 0; var positionPnL = (nowPrice - holdCost) * totalHoldGrams; var trendMultiplier = sig.adx >= 25 ? 0.7 : sig.adx < 18 ? 1.5 : 1.0;
+          var atrGap = atr * trendMultiplier;
+          var maxLevels = Math.min(10, Math.floor(availFunds / (nowPrice * 1))); if (maxLevels < 1) maxLevels = 1; if (maxLevels > 6) maxLevels = 6;
+          var startLevel = addCount;
+          var addLevels = [];
+          var totalGramsPlanned = 0;
+          var totalCostPlanned = 0;
+          var tempSlPrice = nowPrice * (1 - atrPct * am);
+          var minAddPos = Math.max(nowPrice * 0.7, tempSlPrice - atr * 0.5); if (minAddPos > nowPrice * 0.9) minAddPos = nowPrice * 0.9;
+          for (var lv = startLevel; lv < maxLevels; lv++) { var levelPrice = nowPrice - atrGap * (lv + 1); if (levelPrice < minAddPos) levelPrice = minAddPos; if (totalCostPlanned >= availFunds * 0.95) break; var remainingFunds = availFunds - totalCostPlanned; var remainingLevels = maxLevels - lv; var levelGrams = Math.max(1, Math.floor(remainingFunds / remainingLevels / levelPrice)); if (levelGrams < 1) levelGrams = 1; var levelCost = levelGrams * levelPrice; if (totalCostPlanned + levelCost > availFunds) { levelGrams = Math.max(1, Math.floor(remainingFunds / levelPrice));
+              levelCost = levelGrams * levelPrice; } if (levelGrams < 1 || totalCostPlanned + levelCost > availFunds * 1.02) break;
+            addLevels.push({ level: lv + 1, price: Math.round(levelPrice * 100) / 100, grams: levelGrams, cost: Math.round(levelCost * 100) / 100 });
+            totalGramsPlanned += levelGrams;
+            totalCostPlanned += levelCost; }
+          var mainAdds = addLevels.slice(0, 3);
+          var deepAdds = addLevels.slice(3);
+          var totalMainGrams = 0,
+            totalMainCost = 0; for (var i = 0; i < mainAdds.length; i++) { totalMainGrams += mainAdds[i].grams;
+            totalMainCost += mainAdds[i].cost; }
+          var newAvgCost = totalHoldGrams + totalMainGrams > 0 ? ((holdCost * totalHoldGrams + totalMainCost) / (totalHoldGrams + totalMainGrams)) : nowPrice;
+          var stopLossPrice = nowPrice * (1 - atrPct * am); if (stopLossPrice < minAddPos) stopLossPrice = minAddPos;
+          if (mainAdds.length > 0) { var lowestMain = mainAdds[mainAdds.length - 1].price; if (stopLossPrice >= lowestMain) { stopLossPrice = Math.round((lowestMain - atr * 0.5) * 100) / 100; if (stopLossPrice < minAddPos) stopLossPrice = minAddPos; } }
+          var scalpingCost = canScalp ? Math.round(buyPrice * 100) / 100 : 0;
+          var totalPlanCost = Math.round((scalpingCost + totalMainCost) * 100) / 100;
+          var planOk = totalPlanCost <= availFunds;
+          if (canScalp && mainAdds.length > 0 && Math.abs(buyPrice - mainAdds[0].price) / nowPrice < 0.005) { var mergePrice = Math.round((buyPrice + mainAdds[0].price) / 2 * 100) / 100; var mergeGrams = 1 + mainAdds[0].grams; var mergeCost = Math.round(mergePrice * mergeGrams * 100) / 100; var mergeNewAvg = (holdCost * totalHoldGrams + mergePrice * mergeGrams) / (totalHoldGrams + mergeGrams);
+            mergeAdvice = { merge: true, price: mergePrice, grams: mergeGrams, cost: mergeCost, newAvg: mergeNewAvg }; }
+          for (var i = 0; i < positions.length; i++) { if (positions[i].type === 'scalp') { var scalpCost = positions[i].cost; var scalpPnL = (nowPrice - scalpCost) / scalpCost * 100; var scalpTP = Math.round(scalpCost * (1 + atrPct * scalpCoef) * 100) / 100;
+              scalpAdvices.push({ grams: positions[i].grams, cost: scalpCost, pnl: scalpPnL, tp: scalpTP, hold: scalpPnL < (atrPct * 200) }); } }
+          positionInfo = { totalGrams: totalHoldGrams, totalCost: holdCost, value: positionValue, pnl: positionPnL, pnlPct: positionPnLPct, stopLossPrice: stopLossPrice, mainAdds: mainAdds, deepAdds: deepAdds, totalMainGrams: totalMainGrams, totalMainCost: totalMainCost, newAvgCost: newAvgCost, scalpingCost: scalpingCost, totalPlanCost: totalPlanCost, planOk: planOk, atrDollar: atr, trendMultiplier: trendMultiplier, maxLevels: maxLevels, startLevel: startLevel, addCount: addCount, scalpCount: scalpCount, nowPrice: nowPrice, holdCost: holdCost, availFunds: availFunds, positions: positions };
+          if (positionPnLPct < 0) { var dailyReturn = (bt.wr * atrPct - (1 - bt.wr) * atrPct * 0.8) / 100; var daysToBreakeven = null; if (dailyReturn > 0.0001) { daysToBreakeven = Math.ceil(Math.abs(positionPnLPct / 100) / dailyReturn); } var severity = positionPnLPct > -5 ? '浅套' : positionPnLPct > -12 ? '中套' : positionPnLPct > -25 ? '深套' : '严重套牢';
+            trapInfo = { pnlPct: positionPnLPct, severity: severity, daysToBreakeven: daysToBreakeven }; } }
+
+        var fm = function(v) { return (typeof v === 'number' && !isNaN(v)) ? v.toFixed(2) : '-'; }; var fu = function(v) { return '<span style="color:#d94040">' + fm(v) + '</span>'; }; var fg = function(v) { return '<span style="color:#2a9d4a">' + fm(v) + '</span>'; }; var fd = function(v) { return '<span style="color:#2a9d4a">' + fm(v) + '</span>'; }; var html = '';
+        html += '<div class="key-insight"><b>🔑</b> ADX=' + sig.adx.toFixed(0) + '（阈' + adxTh + '） 模式：<b>' + trendMode + '</b> | 技术' + sig.techScore + '/' + techTh + ' | 宏观' + macroScore.toFixed(1) + '分 | 金油比' + goldOilRatio.toFixed(1) + ' | ' + sig.reasons.join('+') + (rollingFail ? ' | ⚠️滚动<35%' : '') + '</div>';
+        if (intraRes.hasData) { var intraClass = intraRes.score > 0 ? 'resonance-note' : intraRes.score < 0 ? 'resonance-warn' : 'auto-reason'; var intraLabel = intraRes.score > 0 ? '🟢 日内偏多' : intraRes.score < 0 ? '🟠 日内偏空' : '🔵 日内中性';
+          html += '<div class="' + intraClass + '">🌍 日内共振：<b>' + intraLabel + '</b> | ' + intraRes.reasons.join(' · ') + ' | 超短止盈系数' + scalpCoef.toFixed(1) + '</div>'; }
+        if (pivotResonance.activeCount > 0) { var resClass = pivotResonance.score > 2 ? 'resonance-note' : pivotResonance.score < -1 ? 'resonance-warn' : 'auto-reason'; var resLabel = pivotResonance.score > 2 ? '🟢 支撑共振偏多' : pivotResonance.score < -1 ? '🟠 阻力共振偏空' : '🔵 轴心点中性';
+          html += '<div class="' + resClass + '">📍 轴心点共振：<b>' + resLabel + '</b> | 已启用' + pivotResonance.activeCount + '品种 | 支撑' + pivotResonance.bullCount + '·阻力' + pivotResonance.bearCount + '</div>'; }
+        if (riskLevel === 'auto') { var riskLabel = effectiveRisk === 'conservative' ? '🛡️ 保守' : effectiveRisk === 'aggressive' ? '⚡ 激进' : '⚖️ 中性';
+          html += '<div class="auto-reason">🤖 自动推荐：<b>' + riskLabel + '</b>（评分' + (autoRL.score >= 0 ? '+' : '') + autoRL.score + '）| ' + autoRL.reasons.join(' · ') + '</div>'; }
+        if (trapInfo) { var trapHtml = '📉 被套：<b>' + trapInfo.severity + '</b>（浮亏' + fu(Math.abs(trapInfo.pnlPct)) + '%）'; if (trapInfo.daysToBreakeven) { trapHtml += ' | 预期逆袭约<b>' + trapInfo.daysToBreakeven + '天</b>'; } else { trapHtml += ' | 胜率不足无法估算'; } html += '<div class="warn-inline">' + trapHtml + '</div>'; }
+        html += '<div class="logic-note">⚙️ 数据' + histData.length + '条·窗口' + win.lb + '天 | 档位：' + effectiveRisk + ' | 超短线' + (canScalp ? '可挂单' : '观望') + ' | 补仓' + (canAdd ? '可补' : (hasPosition && nowPrice < holdCost ? '暂不建议' : '-')) + (positionInfo && positionInfo.startLevel > 0 ? ' | 已跳过' + positionInfo.startLevel + '档已执行补仓' : '') + (intraRes.hasData ? ' | 日内共振已纳入' : '') + '</div>';
+        if (scalpAdvices.length > 0) { html += '<div class="scalp-card"><div class="card-title" style="margin-bottom:4px;">⚡ 超短仓位管理（止盈系数' + scalpCoef.toFixed(1) + '）</div>'; for (var i = 0; i < scalpAdvices.length; i++) { var sa = scalpAdvices[i]; var saColor = sa.pnl >= 0 ? '#d94040' : '#2a9d4a';
+            html += '<div class="scalp-row"><span class="scalp-label">超短' + (i + 1) + '</span><span class="scalp-val">' + sa.grams + '克@¥' + fm(sa.cost) + ' | 浮' + (sa.pnl >= 0 ? '盈' : '亏') + '<span style="color:' + saColor + ';">' + fm(Math.abs(sa.pnl)) + '%</span> | 止盈<span style="color:#d94040;">¥' + fm(sa.tp) + '</span></span></div>'; }
+          html += '</div>'; }
+        if (rollingFail) html += '<div class="verdict verdict-warn"><b>⚠️ 策略可能失效</b></div>';
+        else if (sig.adx < adxTh) html += '<div class="verdict verdict-wait"><b>📊 震荡市观望</b></div>';
+        else if (!sig.up) html += '<div class="verdict verdict-wait"><b>⏸️ 信号不足</b></div>';
+        else if (mergeAdvice) html += '<div class="verdict verdict-scalp">⚡ <b>超短线+补仓合并操作</b><br>挂单+补仓 ≈ <span class="big-price">¥' + mergeAdvice.price.toFixed(2) + '</span>/克 × ' + mergeAdvice.grams + '克<br>⛔ 停止补仓线 ' + fd(sl) + ' · 🎯 ' + fu(tp1) + '/' + fu(tp2) + '<br>💰 ¥' + mergeAdvice.cost.toFixed(2) + '（补后均价¥' + mergeAdvice.newAvg.toFixed(2) + '）</div>';
+        else if (canScalp && hasPosition && nowPrice < holdCost && !canAdd) html += '<div class="verdict verdict-scalp">⚡ <b>超短线可挂单</b><br>挂单 <span class="big-price">¥' + buyPrice.toFixed(2) + '</span>/克<br>⛔ 停止补仓线 ' + fd(sl) + ' · 🎯 ' + fu(tp1) + '/' + fu(tp2) + '</div>';
+        else if (strongTrend && canScalp) html += '<div class="verdict verdict-chase">🚀 <b>强趋势·追涨</b><br>挂单 <span class="big-price">¥' + buyPrice.toFixed(2) + '</span>/克<br>⛔ 停止补仓线 ' + fd(sl) + ' · 🎯 ' + fu(tp1) + '/' + fu(tp2) + '</div>';
+        else if (canScalp) html += '<div class="verdict verdict-act">✅ <b>可以交易·等回调</b><br>挂单 <span class="big-price">¥' + buyPrice.toFixed(2) + '</span>/克<br>⛔ 停止补仓线 ' + fd(sl) + ' · 🎯 ' + fu(tp1) + '/' + fu(tp2) + '</div>';
+        else html += '<div class="verdict verdict-wait"><b>⏸️ 胜率不足</b></div>';
+        if (bt.multiSeg && bt.multiSeg.length >= 2) { html += '<div class="card" style="margin-top:6px;"><div class="card-title">📊 多周期分段验证</div><table class="optimize-table"><thead><tr><th>段</th><th>区间</th><th>胜率</th><th>交易</th></tr></thead><tbody>'; for (var s = 0; s < bt.multiSeg.length; s++) { var seg = bt.multiSeg[s];
+            html += '<tr><td>' + seg.seg + '</td><td>' + seg.startDate + '~' + seg.endDate + '</td><td>' + (seg.wr * 100).toFixed(0) + '%</td><td>' + seg.total + '次</td></tr>'; }
+          html += '</tbody></table></div>'; }
+        html += techBarHtml(sig);
+        if (hasPosition && positionInfo) { var pi = positionInfo;
+          var pnlLabel = pi.pnlPct >= 0 ? '盈利' : '亏损';
+          var pnlColorFn = pi.pnlPct >= 0 ? fg : fu;
+          var addStatus = getAddStatusLabel(nowPrice, pi.holdCost, canAdd, rollingFail, sig.up);
+          html += '<div class="dual-col"><div class="card" style="background:#f8faff;border:1px solid #c0d8f0;">';
+          html += '<div class="card-title">📦 持仓汇总 & 补仓规划' + (canAdd ? ' <span style="color:#d94040;font-size:0.55rem;">·可补</span>' : ' <span style="color:' + addStatus.color + ';font-size:0.55rem;">·' + addStatus.label + '</span>') + '</div>';
+          html += '<div class="position-row"><span class="pos-label">总持仓</span><span class="pos-val">' + fm(pi.totalGrams) + '克·均价¥' + fm(pi.totalCost) + '·市值¥' + fm(pi.value) + '</span></div>';
+          html += '<div class="position-row"><span class="pos-label">浮动</span><span class="pos-val">' + pnlLabel + pnlColorFn(Math.abs(pi.pnlPct)) + '%（¥' + fm(Math.abs(pi.pnl)) + '）</span></div>';
+          html += '<div class="position-row"><span class="pos-label">可用</span><span class="pos-val">¥' + fm(pi.availFunds) + '</span></div>';
+          if (pi.startLevel > 0) { html += '<div style="font-size:0.48rem;color:var(--blue);margin:4px 0;">📌 已执行' + pi.addCount + '档补仓·' + pi.scalpCount + '笔超短，补仓从第' + (pi.startLevel + 1) + '档开始</div>'; }
+          html += '<div style="margin-top:6px;font-size:0.5rem;font-weight:600;color:var(--text-dim);">📍 补仓规划（系数' + pi.trendMultiplier.toFixed(1) + '·从' + (pi.startLevel + 1) + '档起·≥1克）</div>';
+          if (pi.mainAdds.length === 0) { html += '<div style="font-size:0.5rem;color:var(--text-muted);padding:4px 0;">当前资金已规划完毕或无可用资金</div>'; } else { for (var i = 0; i < pi.mainAdds.length; i++) { var la = pi.mainAdds[i]; var lc = i === 0 ? '#d94040' : i === 1 ? '#c8882a' : '#2a9d4a';
+              html += '<div class="position-row"><span class="pos-label">' + la.level + '补¥' + fm(la.price) + '</span><span class="pos-val" style="color:' + lc + ';">' + la.grams + '克≈¥' + fm(la.cost) + '</span></div>'; } }
+          if (pi.deepAdds.length > 0) { html += '<div style="margin-top:6px;font-size:0.46rem;color:var(--text-dim);">📌 深跌备选</div>'; for (var i = 0; i < Math.min(pi.deepAdds.length, 3); i++) { var da = pi.deepAdds[i];
+              html += '<div class="position-row"><span class="pos-label">备' + (i + 1) + '¥' + fm(da.price) + '</span><span class="pos-val" style="color:#999;">' + da.grams + '克≈¥' + fm(da.cost) + '</span></div>'; } }
+          if (pi.totalMainGrams > 0) { html += '<div class="position-row"><span class="pos-label">补后均价</span><span class="pos-val">¥' + fm(pi.totalCost) + '→<b>¥' + fm(pi.newAvgCost) + '</b></span></div>'; }
+          html += '<div class="position-row"><span class="pos-label">⛔停止补仓线</span><span class="pos-val" style="color:#d94040;font-weight:700;">¥' + fm(pi.stopLossPrice) + '</span></div>';
+          html += '</div>';
+          html += '<div class="plan-summary"><div class="card-title" style="margin-bottom:6px;">💰 资金规划（可用¥' + fm(pi.availFunds) + '）</div>';
+          if (mergeAdvice) { html += '<div class="plan-priority">💡 挂单价≈补仓价（差<0.5%），建议合并为1笔' + mergeAdvice.grams + '克@¥' + mergeAdvice.price.toFixed(2) + '，补后均价¥' + mergeAdvice.newAvg.toFixed(2) + '</div>'; }
+          if (canScalp) { html += '<div class="plan-item"><span class="plan-label">新超短挂单</span><span class="plan-val" style="color:#d94040;">¥' + fm(pi.scalpingCost) + '（1克@¥' + fm(buyPrice) + '）</span></div>'; }
+          if (pi.totalMainCost > 0) { html += '<div class="plan-item"><span class="plan-label">新补仓</span><span class="plan-val" style="color:#d94040;">¥' + fm(pi.totalMainCost) + '（' + pi.totalMainGrams + '克）</span></div>'; }
+          html += '<div class="plan-divider"></div>';
+          html += '<div class="plan-item"><span class="plan-label">合计新增占用</span><span class="plan-val" style="color:' + (pi.planOk ? '#2a9d4a' : '#d94040') + ';">¥' + fm(pi.totalPlanCost) + (pi.planOk ? ' ✅' : ' ⚠️超可用') + '</span></div>';
+          html += '<div class="plan-item"><span class="plan-label">剩余可用</span><span class="plan-val">¥' + fm(pi.availFunds - pi.totalPlanCost) + '</span></div>';
+          html += '</div>';
+          html += '<div class="stop-reminder">⛔ 停止补仓线以下不再补仓，持仓继续持有。当前已规划' + (pi.startLevel + pi.mainAdds.length) + '档补仓方案。</div>';
+          html += '</div>'; }
+        html += '<div class="info-grid">';
+        html += '<div class="info-card"><div class="info-name">策略vs随机</div><div class="info-val" style="color:' + (bt.stratEq[bt.stratEq.length - 1] > bt.randEq[bt.randEq.length - 1] ? '#d94040' : '#2a9d4a') + ';">' + (bt.stratEq[bt.stratEq.length - 1] >= bt.randEq[bt.randEq.length - 1] ? '跑赢' : '跑输') + '</div><div class="info-note">策略' + ((bt.stratEq[bt.stratEq.length - 1] - 1) * 100).toFixed(1) + '% vs 随机' + ((bt.randEq[bt.randEq.length - 1] - 1) * 100).toFixed(1) + '%</div></div>';
+        html += '<div class="info-card"><div class="info-name">总胜率</div><div class="info-val">' + bt.hits + '/' + bt.total + '次</div><div class="info-note">' + (bt.wr * 100).toFixed(0) + '% | 贝叶斯' + Math.round(bayesWr * 100) + '%</div></div>';
+        html += '<div class="info-card"><div class="info-name">滚动20次</div><div class="info-val" style="color:' + (bt.recentWR > 0.5 ? '#d94040' : bt.recentWR > 0.35 ? '#c8882a' : '#d94040') + ';">' + (bt.recentWR * 100).toFixed(0) + '%</div><div class="info-note">' + (rollingFail ? '⚠️低于35%' : '正常') + '</div></div>';
+        html += '<div class="info-card"><div class="info-name">ATR波动</div><div class="info-val">' + (atrPctInfo.pct * 100).toFixed(0) + '%分位</div><div class="info-note">当前' + (atrPctInfo.current * 100).toFixed(1) + '% | 中位' + (atrPctInfo.median * 100).toFixed(1) + '%</div></div>';
+        html += '</div>';
+        out.innerHTML = html;
+        var signalGroup = mp.querySelector('details:nth-of-type(1)');
+        var posGroup = mp.querySelector('details:nth-of-type(2)');
+        var btGroup = mp.querySelector('details:nth-of-type(3)');
+        var sigHtml = '';
+        sigHtml += '<div class="model-card" style="' + (pattern.bullish === true ? 'border-left:3px solid #d94040;' : pattern.bullish === false ? 'border-left:3px solid #2a9d4a;' : '') + '"><div class="model-name">🕯️ K线形态</div><div class="model-val">' + pattern.name + '</div><div class="model-note">' + pattern.desc + '</div></div>';
+        if (intraRes.hasData) { sigHtml += '<div class="model-card" style="border-left:3px solid ' + (intraRes.score > 0 ? '#d94040' : intraRes.score < 0 ? '#2a9d4a' : '#c8882a') + ';"><div class="model-name">🌍 日内共振</div><div class="model-val">' + (intraRes.score > 0 ? '偏多' : intraRes.score < 0 ? '偏空' : '中性') + '·系数' + scalpCoef.toFixed(1) + '</div><div class="model-note">' + intraRes.reasons.join(' · ') + '</div></div>'; }
+        if (pivotResonance.activeCount > 0) { sigHtml += '<div class="model-card" style="border-left:3px solid ' + (pivotResonance.score > 0 ? '#d94040' : pivotResonance.score < 0 ? '#2a9d4a' : '#c8882a') + ';"><div class="model-name">📍 轴心点共振</div><div class="model-val">' + pivotResonance.activeCount + '品种·支撑' + pivotResonance.bullCount + '·阻力' + pivotResonance.bearCount + '</div><div class="model-note">' + pivotResonance.reasons.join(' · ') + '</div></div>'; }
+        if (gapInfo.hasGap) sigHtml += '<div class="model-card" style="border-left:3px solid ' + (gapInfo.bullish ? '#d94040' : '#2a9d4a') + ';"><div class="model-name">📌 缺口</div><div class="model-val">' + gapInfo.type + '</div><div class="model-note">' + gapInfo.desc + ' | ' + (gapInfo.score > 0 ? '看涨+' : '看跌') + Math.abs(gapInfo.score) + '分</div></div>';
+        if (triangleInfo.hasTriangle) sigHtml += '<div class="model-card"><div class="model-name">📐 三角形态</div><div class="model-val">' + triangleInfo.desc + '</div><div class="model-note">突破方向：' + triangleInfo.breakout + '</div></div>';
+        if (trendlineInfo.position !== '无明显通道' && trendlineInfo.position !== '数据不足') sigHtml += '<div class="model-card" style="border-left:3px solid ' + (trendlineInfo.score > 0 ? '#d94040' : '#2a9d4a') + ';"><div class="model-name">📉 趋势线位置</div><div class="model-val">' + trendlineInfo.position + '</div><div class="model-note">' + trendlineInfo.desc + ' | ' + (trendlineInfo.score > 0 ? '看涨+' : '看跌') + Math.abs(trendlineInfo.score) + '分</div></div>';
+        sigHtml += '<div class="model-card"><div class="model-name">📈 市场状态</div><div class="model-val">' + regime.regime + '</div><div class="model-note">' + regime.desc + '</div></div>';
+        sigHtml += '<div class="model-card"><div class="model-name">⚡ 超短线</div><div class="model-val" style="color:' + (canScalp ? '#d94040' : '#999') + ';">' + (canScalp ? '可挂单' : '观望') + '</div><div class="model-note">技术信号' + (sig.up ? '到位' : '不足') + ' | 独立于持仓</div></div>';
+        sigHtml += '<div class="model-card"><div class="model-name">🚀 趋势模式</div><div class="model-val" style="color:' + (strongTrend ? '#d94040' : '#999') + ';">' + trendMode + '</div><div class="model-note">ADX=' + sig.adx.toFixed(0) + '（阈' + adxTh + '）| +DI=' + sig.plusDI.toFixed(0) + '</div></div>';
+        if (riskLevel === 'auto') { sigHtml += '<div class="model-card" style="border-left:3px solid #1a6ab0;"><div class="model-name">🤖 智能档位</div><div class="model-val" style="color:' + (effectiveRisk === 'aggressive' ? '#d94040' : effectiveRisk === 'conservative' ? '#2a9d4a' : '#c8882a') + ';">' + effectiveRisk + '</div><div class="model-note">评分' + (autoRL.score >= 0 ? '+' : '') + autoRL.score + ' | ' + autoRL.reasons.join(' · ') + '</div></div>'; }
+        sigHtml += '<div class="model-card"><div class="model-name">🔗 共振</div><div class="model-val" style="color:' + (sig.up ? '#d94040' : '#999') + ';">' + (sig.up ? '✅共振' : '❌未共振') + '</div><div class="model-note">宏观' + macroScore.toFixed(1) + ' | 技术' + sig.techScore + '/' + techTh + '</div></div>';
+        if (canScalp) { sigHtml += '<div class="model-card"><div class="model-name">🎯 挂单</div><div class="model-val">¥' + buyPrice.toFixed(2) + '</div><div class="model-note">止损' + (stopDist * 100).toFixed(1) + '% | ' + effectiveRisk + '型</div></div>'; } else { sigHtml += '<div class="model-card"><div class="model-name">🎯 挂单</div><div class="model-val" style="color:#999;">观望</div><div class="model-note">胜率' + Math.round(bayesWr * 100) + '% < 阈值' + baseTh + '%</div></div>'; }
+        signalGroup.innerHTML = '<summary>📡 信号分析</summary>' + sigHtml;
+        var posHtml = '';
+        if (scalpAdvices.length > 0) { for (var i = 0; i < scalpAdvices.length; i++) { var sa = scalpAdvices[i];
+            posHtml += '<div class="model-card" style="border-left:3px solid ' + (sa.pnl >= 0 ? '#d94040' : '#2a9d4a') + ';"><div class="model-name">⚡ 超短' + (i + 1) + '</div><div class="model-val">' + sa.grams + '克@¥' + fm(sa.cost) + '→止盈¥' + fm(sa.tp) + '</div><div class="model-note">浮' + (sa.pnl >= 0 ? '盈' : '亏') + fm(Math.abs(sa.pnl)) + '% | 系数' + scalpCoef.toFixed(1) + ' | ' + (sa.hold ? '持有' : '止盈') + '</div></div>'; } }
+        if (hasPosition && positionInfo) { var mpAddStatus = getAddStatusLabel(nowPrice, positionInfo.holdCost, canAdd, rollingFail, sig.up);
+          var mpAddLabel = canAdd ? ('可补·从' + (positionInfo.startLevel + 1) + '档起') : mpAddStatus.label;
+          var mpAddColor = canAdd ? '#d94040' : mpAddStatus.color;
+          posHtml += '<div class="model-card" style="border-left:3px solid ' + mpAddColor + ';"><div class="model-name">📦 智能补仓</div><div class="model-val">' + mpAddLabel + '</div><div class="model-note">' + positionInfo.mainAdds.length + '档待执行·共' + positionInfo.totalMainGrams + '克 | 停止线¥' + fm(positionInfo.stopLossPrice) + '</div></div>'; }
+        posGroup.innerHTML = '<summary>📦 持仓与补仓</summary>' + posHtml;
+        var btHtml = '';
+        btHtml += '<div class="model-card"><div class="model-name">📊 总胜率</div><div class="model-val">' + bt.hits + '/' + bt.total + '次 (' + (bt.wr * 100).toFixed(0) + '%)</div><div class="model-note">贝叶斯' + Math.round(bayesWr * 100) + '% | 滚动' + (bt.recentWR * 100).toFixed(0) + '%</div></div>';
+        btHtml += '<div class="model-card"><div class="model-name">📈 策略权益</div><div class="model-val" style="color:' + (bt.stratEq[bt.stratEq.length - 1] >= bt.randEq[bt.randEq.length - 1] ? '#d94040' : '#2a9d4a') + ';">' + ((bt.stratEq[bt.stratEq.length - 1] - 1) * 100).toFixed(1) + '%</div><div class="model-note">随机' + ((bt.randEq[bt.randEq.length - 1] - 1) * 100).toFixed(1) + '% | ' + (bt.stratEq[bt.stratEq.length - 1] >= bt.randEq[bt.randEq.length - 1] ? '跑赢' : '跑输') + '</div></div>';
+        btHtml += '<div class="model-card"><div class="model-name">📉 ATR波动</div><div class="model-val">' + (atrPctInfo.pct * 100).toFixed(0) + '%分位</div><div class="model-note">当前' + (atrPctInfo.current * 100).toFixed(1) + '% | 中位' + (atrPctInfo.median * 100).toFixed(1) + '%</div></div>';
+        if (bt.multiSeg && bt.multiSeg.length >= 2) { btHtml += '<div class="model-card"><div class="model-name">🔄 多周期</div><div class="model-val">' + bt.multiSeg.length + '段</div><div class="model-note">首段' + (bt.multiSeg[0].wr * 100).toFixed(0) + '% → 末段' + (bt.multiSeg[bt.multiSeg.length - 1].wr * 100).toFixed(0) + '%</div></div>'; }
+        btGroup.innerHTML = '<summary>📊 回测统计</summary>' + btHtml;
+        updatePosSummary(); });
+    })();
+  </script>
+</body>
+</html>
