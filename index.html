@@ -409,16 +409,16 @@
         for (var day = 1; day <= maxDays; day++) {
           var guaranteePrice, decayPrice, finalPrice, isGuarantee;
           if (tradeType === 'reverseT') {
-            guaranteePrice = (buyPrice * (1 - feeRate / 100)) * (1 - minAnnualReturn * day / 365);
-            decayPrice = tp1Raw * Math.exp(kDynamic * (day - 1));
-            finalPrice = Math.min(guaranteePrice, decayPrice);
-            isGuarantee = (day >= guaranteeDay) || (guaranteePrice < decayPrice);
-          } else {
-            guaranteePrice = (buyPrice / (1 - feeRate / 100)) * (1 + minAnnualReturn * day / 365);
-            decayPrice = tp1Raw * Math.exp(-kDynamic * (day - 1));
-            finalPrice = Math.max(guaranteePrice, decayPrice);
-            isGuarantee = (day >= guaranteeDay) || (guaranteePrice > decayPrice);
-          }
+    guaranteePrice = (buyPrice * (1 - feeRate / 100)) * (1 - minAnnualReturn * day / 365);
+    decayPrice = tp1Raw * Math.exp(kDynamic * (day - 1));
+    isGuarantee = (day >= guaranteeDay) || (guaranteePrice < decayPrice);
+    finalPrice = isGuarantee ? guaranteePrice : Math.min(guaranteePrice, decayPrice);
+} else {
+    guaranteePrice = (buyPrice / (1 - feeRate / 100)) * (1 + minAnnualReturn * day / 365);
+    decayPrice = tp1Raw * Math.exp(-kDynamic * (day - 1));
+    isGuarantee = (day >= guaranteeDay) || (guaranteePrice > decayPrice);
+    finalPrice = isGuarantee ? guaranteePrice : Math.max(guaranteePrice, decayPrice);
+}
           if (isGuarantee && guaranteeTakeoverDay === maxDays) { guaranteeTakeoverDay = day; }
           var netReturn;
           if (tradeType === 'reverseT') { var netSellProceeds = buyPrice * (1 - feeRate / 100); netReturn = (netSellProceeds - finalPrice) / buyPrice; }
