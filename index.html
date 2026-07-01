@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -316,7 +316,7 @@
       <div class="panel-right" id="modelPanel"><details class="model-group" open><summary>信号分析</summary><div class="model-card"><div class="model-note">运行后显示</div></div></details><details class="model-group" open><summary>持仓与补仓</summary><div class="model-card"><div class="model-note">运行后显示</div></div></details><details class="model-group" open><summary>回测统计</summary><div class="model-card"><div class="model-note">运行后显示</div></div></details><details class="model-group" open><summary>风险量化</summary><div class="model-card"><div class="model-note">运行后显示</div></div></details></div>
     </div>
   </div>
-<script>
+  <script>
 (function() {
   var $ = function(id) { return document.getElementById(id); };
   var histData = [];
@@ -377,11 +377,10 @@ return { action: '继续等', label: '[WAIT] 接回利润不足，继续持有�
 
   // ==================== 市场结构切换点查找 ====================
   function findRegimeSplitPoints(closes, minBars) {
-    minBars = minBars || 400;
-    var minTestBars = 250;
+    minBars = minBars || 250;
     var splitPoints = [];
     var prevStructure = null;
-    for (var i = 250; i < closes.length - minTestBars; i++) {
+    for (var i = 250; i < closes.length - 250; i++) {
       var ma20 = 0, ma60 = 0;
       for (var j = i - 19; j <= i; j++) ma20 += closes[j];
       for (var j = i - 59; j <= i; j++) ma60 += closes[j];
@@ -540,7 +539,7 @@ return { action: '继续等', label: '[WAIT] 接回利润不足，继续持有�
     regimePriorCache[key] = entry;
     saveRegimePriorCache(regimePriorCache);
   }
-  function autoOptimizeBayes(data, lb, fd, feeRate, adxTh, techTh, slippageBps) { var closes = [], opens = []; for (var i = 0; i < data.length; i++) { closes.push(data[i].c); opens.push(data[i].o); } var mw = Math.max(lb, 15); var best = { irW: 5, ruW: 0.1, score: 0 }; var results = []; for (var irW = 1; irW <= 10; irW++) { for (var ruW = 0.02; ruW <= 0.3; ruW += 0.04) { var total = 0, hits = 0; for (var i = mw; i < closes.length - fd - 1; i++) { var tO = opens[i] || closes[i]; var np = closes[i]; var atrEst = calcATR(data.slice(Math.max(0,i-14), i+1), 14); var tH = tO + atrEst * 0.5; var tL = tO - atrEst * 0.3; var bayesWr = bayes(0.55, tO, np, tH, tL, irW, ruW); if (bayesWr > 0.52) { total++; if (closes[Math.min(i+fd, closes.length-1)] > closes[i]) hits++; } } var score = total > 10 ? (hits/total) * Math.min(total,30) : 0; results.push({ irW: irW, ruW: ruW, wr: total>0?hits/total:0, total: total, score: score }); if (score > best.score) best = { irW: irW, ruW: ruW, score: score, wr: total>0?hits/total:0, total: total }; } } results.sort(function(a,b){return b.score-a.score;}); return { best: best, top3: results.slice(0,3) }; }
+    function autoOptimizeBayes(data, lb, fd, feeRate, adxTh, techTh, slippageBps) { var closes = [], opens = []; for (var i = 0; i < data.length; i++) { closes.push(data[i].c); opens.push(data[i].o); } var mw = Math.max(lb, 15); var best = { irW: 5, ruW: 0.1, score: 0 }; var results = []; for (var irW = 1; irW <= 10; irW++) { for (var ruW = 0.02; ruW <= 0.3; ruW += 0.04) { var total = 0, hits = 0; for (var i = mw; i < closes.length - fd - 1; i++) { var tO = opens[i] || closes[i]; var np = closes[i]; var atrEst = calcATR(data.slice(Math.max(0,i-14), i+1), 14); var tH = tO + atrEst * 0.5; var tL = tO - atrEst * 0.3; var bayesWr = bayes(0.55, tO, np, tH, tL, irW, ruW); if (bayesWr > 0.52) { total++; if (closes[Math.min(i+fd, closes.length-1)] > closes[i]) hits++; } } var score = total > 10 ? (hits/total) * Math.min(total,30) : 0; results.push({ irW: irW, ruW: ruW, wr: total>0?hits/total:0, total: total, score: score }); if (score > best.score) best = { irW: irW, ruW: ruW, score: score, wr: total>0?hits/total:0, total: total }; } } results.sort(function(a,b){return b.score-a.score;}); return { best: best, top3: results.slice(0,3) }; }
   function quickBacktest(data, lb, fd, feeRate, adxTh, techTh, slippageBps) { var closes = [], opens = []; for (var i = 0; i < data.length; i++) { closes.push(data[i].c); opens.push(data[i].o); } var mw = Math.max(lb, 15); var total = 0, hits = 0; var emptyRegime = { maStructure: '数据不足' }; var slipRate = (slippageBps || 5) / 10000; for (var i = mw; i < closes.length - fd - 1; i++) { var macroB = closes[Math.max(0, i - 20)] > closes[Math.max(0, i - 40)]; var sig = getSignal(data.slice(0, i), macroB, adxTh, techTh, data[Math.max(0, i - 1)].dir, closes[i], undefined, undefined, undefined, undefined, undefined, undefined, undefined, emptyRegime, 'long'); var entry = opens[i + 1] * (1 + slipRate); var exitPrice = closes[Math.min(i + 1 + fd, closes.length - 1)] * (1 - feeRate / 100) * (1 - slipRate); if (sig.up) { total++; if ((exitPrice - entry) / entry > 0) hits++; } } return { hits: hits, total: total, wr: total > 0 ? hits / total : 0.5, score: total > 0 ? (hits / total) * Math.min(total, 50) : 0 }; }
   function autoOptimizeAdaptive(data, lb, fd, feeRate) { var closes = []; for (var i = 0; i < data.length; i++) closes.push(data[i].c); var globalBest = { adx: 20, tech: 3, slippage: 5, score: 0, wr: 0, total: 0 }; var regimeResults = {}; var allResults = []; for (var adx = 15; adx <= 30; adx++) { for (var tech = 2; tech <= 6; tech++) { for (var slippage = 0; slippage <= 15; slippage += 5) { var bt = quickBacktest(data, lb, fd, feeRate, adx, tech, slippage); allResults.push({ adx: adx, tech: tech, slippage: slippage, wr: bt.wr, total: bt.total, score: bt.score }); if (bt.score > globalBest.score || (bt.score === globalBest.score && bt.wr > globalBest.wr)) { globalBest = { adx: adx, tech: tech, slippage: slippage, score: bt.score, wr: bt.wr, total: bt.total }; } var regimeStats = { '多头排列': { hits: 0, total: 0 }, '空头排列': { hits: 0, total: 0 }, '均线缠绕': { hits: 0, total: 0 } }; var mw2 = Math.max(lb, 15); var slipRate = (slippage || 5) / 10000; for (var i = mw2; i < closes.length - fd - 1; i++) { var cI2 = closes.slice(0, i); var regI2 = cI2.length >= 60 ? marketRegime(cI2).maStructure : '均线缠绕'; if (!regimeStats[regI2]) regimeStats[regI2] = { hits: 0, total: 0 }; var macroB2 = closes[Math.max(0, i - 20)] > closes[Math.max(0, i - 40)]; var sig2 = getSignal(data.slice(0, i), macroB2, adx, tech, data[Math.max(0, i - 1)].dir, closes[i], undefined, undefined, undefined, undefined, undefined, undefined, undefined, { maStructure: regI2 }, 'long'); var entry2 = (data[i+1] ? data[i+1].o : closes[i]) * (1 + slipRate); var exit2 = closes[Math.min(i + 1 + fd, closes.length - 1)] * (1 - feeRate / 100) * (1 - slipRate); if (sig2.up) { regimeStats[regI2].total++; if ((exit2 - entry2) / entry2 > 0) regimeStats[regI2].hits++; } } for (var rk in regimeStats) { if (regimeStats[rk].total >= 5) { var rkWr = regimeStats[rk].hits / regimeStats[rk].total; var rkScore = rkWr * Math.min(regimeStats[rk].total, 30); if (!regimeResults[rk] || rkScore > regimeResults[rk].score) { regimeResults[rk] = { adx: adx, tech: tech, slippage: slippage, wr: rkWr, total: regimeStats[rk].total, score: rkScore }; } } } } } } allResults.sort(function(a,b){return b.score-a.score;}); for (var rk in { '多头排列':1,'空头排列':1,'均线缠绕':1 }) { if (!regimeResults[rk] || regimeResults[rk].total < 5) { regimeResults[rk] = { adx: globalBest.adx, tech: globalBest.tech, slippage: globalBest.slippage, wr: globalBest.wr, total: globalBest.total, score: globalBest.score, fallback: true }; } } return { globalBest: globalBest, regimeResults: regimeResults, top5: allResults.slice(0,5) }; }
   function calcTimeDecayStopPrices(options) {
@@ -733,7 +732,7 @@ return { action: '继续等', label: '[WAIT] 接回利润不足，继续持有�
   function syncFunds(source) { var totalFunds = gv('totalFunds'); var availFunds = gv('availFunds'); var rows = document.querySelectorAll('#posTbody tr[data-slot]'); var posTotalCost = 0; for (var i = 0; i < rows.length; i++) { var g = parseFloat(rows[i].querySelector('.slot-grams').value) || 0; var c = parseFloat(rows[i].querySelector('.slot-cost').value) || 0; posTotalCost += g * c; } if (source === 'total' && !isNaN(totalFunds)) { var calcAvail = totalFunds - posTotalCost; $('availFunds').value = Math.max(0, calcAvail).toFixed(2); } else if (source === 'avail' && !isNaN(availFunds)) { $('totalFunds').value = (availFunds + posTotalCost).toFixed(2); } }
   $('totalFunds').addEventListener('input', function() { syncFunds('total'); });
   $('availFunds').addEventListener('input', function() { syncFunds('avail'); });
-  function addSSSlot() { ssSlotCounter++; var tr = document.createElement('tr'); tr.setAttribute('data-ssslot', ssSlotCounter); tr.innerHTML = '<td><select class="ss-type"><option value="shortSwing">空单</option><option value="reduce">减仓</option></select></td><td><input type="number" step="0.0001" class="ss-grams" value="1"></td><td><input type="number" step="0.01" class="ss-buycost"></td><td><input type="date" class="ss-buydate"></td><td><input type="number" step="0.01" class="ss-sellprice"></td><td><input type="date" class="ss-selldate"></td><td><input type="number" step="0.01" class="ss-buyback" placeholder="未接回"></td><td><span class="ss-remove" onclick="this.closest(\'tr\').remove();">X</span></td>'; $('ssTbody').appendChild(tr); }
+    function addSSSlot() { ssSlotCounter++; var tr = document.createElement('tr'); tr.setAttribute('data-ssslot', ssSlotCounter); tr.innerHTML = '<td><select class="ss-type"><option value="shortSwing">空单</option><option value="reduce">减仓</option></select></td><td><input type="number" step="0.0001" class="ss-grams" value="1"></td><td><input type="number" step="0.01" class="ss-buycost"></td><td><input type="date" class="ss-buydate"></td><td><input type="number" step="0.01" class="ss-sellprice"></td><td><input type="date" class="ss-selldate"></td><td><input type="number" step="0.01" class="ss-buyback" placeholder="未接回"></td><td><span class="ss-remove" onclick="this.closest(\'tr\').remove();">X</span></td>'; $('ssTbody').appendChild(tr); }
   $('addSSSlotBtn').addEventListener('click', function() { addSSSlot(); });
   function collectSSData() { var rows = document.querySelectorAll('#ssTbody tr[data-ssslot]'); var data = []; for (var i = 0; i < rows.length; i++) { var tp = rows[i].querySelector('.ss-type').value; var g = parseFloat(rows[i].querySelector('.ss-grams').value) || 0; var bc = parseFloat(rows[i].querySelector('.ss-buycost').value) || 0; var bd = rows[i].querySelector('.ss-buydate').value; var sp = parseFloat(rows[i].querySelector('.ss-sellprice').value) || 0; var sd = rows[i].querySelector('.ss-selldate').value; var bb = parseFloat(rows[i].querySelector('.ss-buyback').value) || 0; if (g > 0 && sp > 0 && sd) { data.push({ type: tp, grams: g, buyCost: bc, buyDate: bd, sellPrice: sp, sellDate: sd, buybackPrice: bb, days: calcDaysFromDate(sd) }); } } return data; }
   function savePositions() { var rows = document.querySelectorAll('#posTbody tr[data-slot]'); var posData = []; for (var i = 0; i < rows.length; i++) { posData.push({ type: rows[i].querySelector('.slot-type').value, grams: rows[i].querySelector('.slot-grams').value, cost: rows[i].querySelector('.slot-cost').value, date: rows[i].querySelector('.slot-date').value }); } var ssData = collectSSData(); var ssSaveData = ssData.map(function(r){ return { type: r.type, grams: r.grams, buyCost: r.buyCost, buyDate: r.buyDate, sellPrice: r.sellPrice, sellDate: r.sellDate, buybackPrice: r.buybackPrice }; }); var saveObj = { positions: posData, jdTotalGrams: $('jdTotalGrams').value, jdAvgCost: $('jdAvgCost').value, jdCumProfit: $('jdCumProfit').value, totalFunds: $('totalFunds').value, availFunds: $('availFunds').value, shortSwingList: ssSaveData, savedAt: new Date().toISOString() }; try { localStorage.setItem('goldEngine_positions', JSON.stringify(saveObj)); var si = $('saveIndicator'); si.classList.add('show'); setTimeout(function() { si.classList.remove('show'); }, 2000); toast('持仓数据已保存', 'ok'); } catch (e) { toast('保存失败', 'err'); } }
@@ -839,7 +838,7 @@ return { action: '继续等', label: '[WAIT] 接回利润不足，继续持有�
   function historicalVaR(stratEq, horizon, confidence) { horizon = horizon || 5; confidence = confidence || 0.95; if (stratEq.length < horizon + 10) return { var95: 0, cvar95: 0, note: '数据不足' }; var dailyRets = []; for (var i = 1; i < stratEq.length; i++) dailyRets.push((stratEq[i] - stratEq[i-1]) / stratEq[i-1]); var rollingReturns = []; for (var i = 0; i <= dailyRets.length - horizon; i++) { var cumRet = 0; for (var h = 0; h < horizon; h++) cumRet += dailyRets[i + h]; rollingReturns.push(cumRet); } rollingReturns.sort(function(a,b){return a-b;}); var idx = Math.floor(rollingReturns.length * (1 - confidence)); var var95 = rollingReturns[Math.max(0, idx)]; var tailSum = 0; for (var i = 0; i <= idx; i++) tailSum += rollingReturns[i]; var cvar95 = idx >= 0 ? tailSum / (idx + 1) : var95; return { var95: Math.round(var95 * 10000) / 100, cvar95: Math.round(cvar95 * 10000) / 100, note: horizon + '天' + (confidence*100).toFixed(0) + '%VaR(历史模拟)' }; }
   $('pasteBtn').addEventListener('click', function() { var text = $('pasteArea').value.trim(); if (!text) { toast('请先粘贴数据', 'err'); return; } histData = parseData(text); if (histData.length < 30) { toast('至少需要30条', 'err'); histData = []; return; } $('dataSummary').textContent = histData.length + '条 ' + histData[0].date + ' ~ ' + histData[histData.length - 1].date; if (histData.length >= 1) { $('domPrev').value = histData[histData.length - 1].c.toFixed(2); } var xauNow = gv('london'); var xagNow = gv('xagPrice'); var gsrNow = gv('gsRatio'); if (!isNaN(xauNow) && !isNaN(xagNow) && xagNow > 0 && isNaN(gsrNow)) { $('gsRatio').value = (xauNow / xagNow).toFixed(2); } toast('解析成功', 'ok'); });
   $('clearBtn').addEventListener('click', function() { ['pasteArea','dataSummary','outputArea','decaySummary','geoSummary','geoDetail','manualAddText'].forEach(function(id) { if ($(id) && $(id).value !== undefined) $(id).value = ''; else if ($(id)) $(id).textContent = ''; }); $('modelPanel').innerHTML = '<details class="model-group" open><summary>信号分析</summary><div class="model-card"><div class="model-note">运行后显示</div></div></details><details class="model-group" open><summary>持仓与补仓</summary><div class="model-card"><div class="model-note">运行后显示</div></div></details><details class="model-group" open><summary>回测统计</summary><div class="model-card"><div class="model-note">运行后显示</div></div></details><details class="model-group" open><summary>风险量化</summary><div class="model-card"><div class="model-note">运行后显示</div></div></details>'; $('outputArea').innerHTML = '<div class="placeholder-box">请填写数据后点击"运行分析"</div>'; geoData = null; redrawParams = null; regimeParams = null; shortSwingRegimeParams = null; fvResult = null; fvResultShort = null; shortSwingBT = null; $('geoBadge').textContent = '未分析'; $('geoReports').innerHTML = '<div class="geo-slot" data-slot="1"><textarea class="geo-text" rows="2" style="font-size:0.36rem;min-height:28px;"></textarea><span class="geo-remove" onclick="this.parentElement.remove();updateGeoSlots();" style="display:none;">X</span></div>'; geoSlotCounter = 1; updateGeoSlots(); $('geoWeight').value = '6'; $('geoWeightVal').textContent = '6'; $('geoWeightAuto').textContent = ''; histData = []; var allIds = ['todayO','todayH','todayL','nowPriceCompact','fundFlow','targetPct','grams','feeRate','availFunds','totalFunds','jdCumProfit','jdAvgCost','jdTotalGrams','usdx','cny','london','brent','us10y','vix']; for (var i = 0; i < allIds.length; i++) { if ($(allIds[i])) $(allIds[i]).value = ''; } $('posTbody').innerHTML = '<tr data-slot="0"><td><select class="slot-type"><option value="long">长期</option><option value="add">补仓</option><option value="swing">多单</option></select></td><td><input type="number" step="0.0001" class="slot-grams"></td><td><input type="number" step="0.01" class="slot-cost"></td><td><input type="date" class="slot-date"></td><td class="slot-pnl">-</td><td class="slot-score">-</td><td></td></tr>'; slotCounter = 1; $('posSummary').innerHTML = ''; $('ssTbody').innerHTML = '<tr data-ssslot="0"><td><select class="ss-type"><option value="shortSwing">空单</option><option value="reduce">减仓</option></select></td><td><input type="number" step="0.0001" class="ss-grams" value="1"></td><td><input type="number" step="0.01" class="ss-buycost"></td><td><input type="date" class="ss-buydate"></td><td><input type="number" step="0.01" class="ss-sellprice"></td><td><input type="date" class="ss-selldate"></td><td><input type="number" step="0.01" class="ss-buyback" placeholder="未接回"></td><td></td></tr>'; ssSlotCounter = 1; $('feeRate').value = '0.4'; $('targetPct').value = '0.5'; document.querySelectorAll('.pill').forEach(function(pp) { pp.classList.remove('active'); pp.classList.remove('auto-active'); }); document.querySelector('.pill[data-risk="auto"]').classList.add('auto-active'); document.querySelector('.pill[data-addmode="auto"]').classList.add('active'); document.querySelector('.pill[data-addmode="manual"]').classList.remove('active'); addMode = 'auto'; $('manualAddArea').style.display = 'none'; riskLevel = 'auto'; bayesOpt = { irW: 5, ruW: 0.1 }; regimeParams = null; shortSwingRegimeParams = null; shortSwingBT = null; toast('已清空', 'ok'); });
-  $('optimizeBtn').addEventListener('click', function() {
+    $('optimizeBtn').addEventListener('click', function() {
         if (!histData || histData.length < 30) { toast('请先粘贴至少30条数据', 'err'); return; }
         var feeRate = gv('feeRate'); if (isNaN(feeRate)) feeRate = 0.4;
         var forecastDays = parseInt($('forecastDays').value) || 5;
@@ -957,6 +956,36 @@ return { action: '继续等', label: '[WAIT] 接回利润不足，继续持有�
       });
 
   $('copyResultBtn').addEventListener('click', function() { var text = $('outputArea').innerText; if (!text || text.trim() === '') { toast('请先运行分析', 'err'); return; } if (navigator.clipboard) { navigator.clipboard.writeText(text).then(function() { toast('结果已复制', 'ok'); }); } else { toast('浏览器不支持剪贴板', 'err'); } });
+
+  // ==================== 结构统计：按市场结构分类统计多空胜率 ====================
+  function calcRegimeStats(histData, feeRate, effectiveAdxTh, effectiveTechTh, slippageBps, shortSwingAdxTh, shortSwingTechTh, shortSwingSlipBps, forecastDays) {
+    var closes = []; for (var i = 0; i < histData.length; i++) closes.push(histData[i].c);
+    var stats = { '多头排列': { long: { hits: 0, total: 0 }, short: { hits: 0, total: 0 } }, '空头排列': { long: { hits: 0, total: 0 }, short: { hits: 0, total: 0 } }, '均线缠绕': { long: { hits: 0, total: 0 }, short: { hits: 0, total: 0 } } };
+    var minWarmup = 60;
+    for (var i = minWarmup; i < histData.length - forecastDays - 1; i++) {
+      var closesI = []; for (var k = 0; k <= i; k++) closesI.push(closes[k]);
+      var regimeI = closesI.length >= 60 ? marketRegime(closesI) : null;
+      if (!regimeI || !stats[regimeI.maStructure]) continue;
+      var histSlice = histData.slice(0, i);
+      var macroB = closes[Math.max(0, i - 20)] > closes[Math.max(0, i - 40)];
+      var sigL = getSignal(histSlice, macroB, effectiveAdxTh, effectiveTechTh, histData[Math.max(0, i - 1)].dir, closes[i], undefined, undefined, undefined, undefined, undefined, undefined, undefined, regimeI, 'long');
+      if (sigL.up) {
+        stats[regimeI.maStructure].long.total++;
+        var entryL = histData[i + 1].o * (1 + (slippageBps || 5) / 10000);
+        var exitL = closes[Math.min(i + 1 + forecastDays, closes.length - 1)] * (1 - feeRate / 100) * (1 - (slippageBps || 5) / 10000);
+        if ((exitL - entryL) / entryL > 0) stats[regimeI.maStructure].long.hits++;
+      }
+      var sigS = getSignal(histSlice, false, shortSwingAdxTh, shortSwingTechTh, histData[Math.max(0, i - 1)].dir, closes[i], undefined, undefined, undefined, undefined, undefined, undefined, undefined, regimeI, 'short');
+      if (sigS.down) {
+        stats[regimeI.maStructure].short.total++;
+        var entryS = histData[i + 1].o * (1 - (slippageBps || 5) / 10000);
+        var exitS = closes[Math.min(i + 1 + forecastDays, closes.length - 1)] * (1 + feeRate / 100) * (1 + (slippageBps || 5) / 10000);
+        if ((entryS - exitS) / entryS > 0) stats[regimeI.maStructure].short.hits++;
+      }
+    }
+    return stats;
+  }
+
   $('runBtn').addEventListener('click', function() {
         if (!validateInputs()) return;
         var out = $('outputArea'), mp = $('modelPanel');
@@ -1001,9 +1030,22 @@ return { action: '继续等', label: '[WAIT] 接回利润不足，继续持有�
         shortSwingBT = fullBacktestShortSwing(histData, win.lb, forecastDays, feeRate, shortSwingAdxTh, shortSwingTechTh, shortSwingSlipBps);
         var bsCI = blockBootstrap(bt.trades, 500, 4); var bsCIS = blockBootstrap(shortSwingBT.trades, 500, 4);
         var hVaR = historicalVaR(bt.stratEq, forecastDays, 0.95); var hVaRS = historicalVaR(shortSwingBT.stratEq, forecastDays, 0.95);
-        if (chartsExpanded) { drawChart('klineChart', histData, false, tO, tH, tL, nowPrice, true); drawChart('equityChart', [bt.randEq, bt.stratEq, shortSwingBT.stratEq], true, tO, tH, tL, nowPrice, false); drawDecayChart(bt.decayCurve, forecastDays); }
+
+        // 计算超额收益曲线
+        var excessLong = [], excessShort = [];
+        var minLen = Math.min(bt.stratEq.length, bt.randEq.length, shortSwingBT.stratEq.length);
+        for (var i = 0; i < minLen; i++) {
+          excessLong.push(bt.stratEq[i] - bt.randEq[i]);
+          excessShort.push(shortSwingBT.stratEq[i] - bt.randEq[i]);
+        }
+        if (chartsExpanded) { drawChart('klineChart', histData, false, tO, tH, tL, nowPrice, true); drawChart('equityChart', [excessLong, excessShort], true, tO, tH, tL, nowPrice, false); drawDecayChart(bt.decayCurve, forecastDays); }
         redrawParams = { histData: histData, tO: tO, tH: tH, tL: tL, nowPrice: nowPrice, bt: bt, shortSwingBT: shortSwingBT, decayCurve: bt.decayCurve, forecastDays: forecastDays };
         var atrPctInfo = { pct: 0.5, current: atrPct, median: atrPct };
+
+        // 结构统计
+        var regimeStats = calcRegimeStats(histData, feeRate, effectiveAdxTh, effectiveTechTh, slippageBps, shortSwingAdxTh, shortSwingTechTh, shortSwingSlipBps, forecastDays);
+        var currentLongWR = regimeStats[regime.maStructure].long.total > 0 ? regimeStats[regime.maStructure].long.hits / regimeStats[regime.maStructure].long.total : null;
+        var currentShortWR = regimeStats[regime.maStructure].short.total > 0 ? regimeStats[regime.maStructure].short.hits / regimeStats[regime.maStructure].short.total : null;
 
         var baseWr;
         var regimePriorLong = getRegimePrior(regime.maStructure, 'long');
@@ -1116,6 +1158,12 @@ return { action: '继续等', label: '[WAIT] 接回利润不足，继续持有�
         html += ' | 多单:' + sig.reasons.join('+') + ' | 空单:' + sigShort.reasons.join('+') + (rollingFail ? ' | 滚动<35%' : '') + '</div>';
         if (trendExhaustion && trendExhaustion.desc) { html += '<div class="trend-alert"><div class="alert-title">[!] 趋势衰竭预警</div><div class="alert-desc">' + trendExhaustion.desc + '</div></div>'; }
         if (volAnomaly && volAnomaly.desc) { html += '<div class="logic-note">[V] 成交量异动：' + volAnomaly.desc + '</div>'; }
+        // 结构统计
+        html += '<div class="auto-reason">[RS] 结构统计：当前<span class="trend-metric ' + regime.trendClass + '">' + regime.maStructure + '</span>';
+        html += ' | 历史上' + regime.maStructure + '下：多单胜率' + (currentLongWR !== null ? (currentLongWR*100).toFixed(0) + '%(' + regimeStats[regime.maStructure].long.total + '次)' : '数据不足');
+        html += ' / 空单胜率' + (currentShortWR !== null ? (currentShortWR*100).toFixed(0) + '%(' + regimeStats[regime.maStructure].short.total + '次)' : '数据不足');
+        html += ' | 多头排列·多单胜率' + (regimeStats['多头排列'].long.total > 0 ? (regimeStats['多头排列'].long.hits/regimeStats['多头排列'].long.total*100).toFixed(0) + '%' : '-');
+        html += ' / 均线缠绕·多单胜率' + (regimeStats['均线缠绕'].long.total > 0 ? (regimeStats['均线缠绕'].long.hits/regimeStats['均线缠绕'].long.total*100).toFixed(0) + '%' : '-') + '</div>';
         if (geoData && geoData.crConsensus) { var crColor = geoData.crConsensus === '回调' ? '#2a9d4a' : geoData.crConsensus === '反转' ? '#d94040' : '#c8882a'; html += '<div class="auto-reason">地缘共识：<span style="color:' + crColor + ';">' + geoData.crConsensus + '</span> (' + geoData.crVotes['回调'] + '回调/' + geoData.crVotes['反转'] + '反转/' + geoData.crVotes['不确定'] + '不确定) | 一致度' + Math.round(geoData.crConfidence*100) + '%</div>'; }
         if (intraRes.hasData) { var intraClass = intraRes.score > 0 ? 'resonance-note' : intraRes.score < 0 ? 'resonance-warn' : 'auto-reason'; html += '<div class="' + intraClass + '">[G] 日内共振：' + (intraRes.score > 0 ? '[++] 日内偏多' : intraRes.score < 0 ? '[-] 日内偏空' : '[oo] 日内中性') + ' | ' + intraRes.reasons.join(' · ') + ' | 止盈系数' + swingCoef.toFixed(1) + '</div>'; }
         if (pivotResonance.activeCount > 0) { var resClass = pivotResonance.score > 2 ? 'resonance-note' : pivotResonance.score < -1 ? 'resonance-warn' : 'auto-reason'; html += '<div class="' + resClass + '">[P] 轴心点共振：' + (pivotResonance.score > 2 ? '[++] 支撑共振偏多' : pivotResonance.score < -1 ? '[-] 阻力共振偏空' : '[oo] 轴心点中性') + ' | 已启用' + pivotResonance.activeCount + '品种 | 支撑' + pivotResonance.bullCount + '·阻力' + pivotResonance.bearCount + '</div>'; }
@@ -1163,3 +1211,4 @@ return { action: '继续等', label: '[WAIT] 接回利润不足，继续持有�
   </script>
 </body>
 </html>
+  
